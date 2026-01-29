@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Item - Grocify{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col" style="max-width: 600px; margin: 0 auto;">
+        <!-- Delete Confirmation Card -->
+        <div class="card">
+            <div class="card-header" style="border-left: 4px solid var(--danger-color);">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Delete Confirmation
+                </h2>
+            </div>
+            
+            <div class="card-body">
+                <!-- Back Link -->
+                <div class="mb-4">
+                    <a href="{% url 'inventory_list' %}" class="btn btn-outline btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Inventory
+                    </a>
+                </div>
+                
+                <!-- Warning Message -->
+                <div class="alert alert-danger">
+                    <div class="d-flex align-items-start">
+                        <div style="font-size: 2rem; margin-right: 15px;">
+                            ⚠️
+                        </div>
+                        <div>
+                            <h4 class="alert-heading">This action cannot be undone!</h4>
+                            <p class="mb-0">The item will be permanently deleted from your inventory.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Item Details -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="mb-3">
+                            <i class="fas fa-box"></i> Item to Delete
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-6 mb-2">
+                                <strong>Name:</strong>
+                                <p>{{ item.name }}</p>
+                            </div>
+                            
+                            <div class="col-6 mb-2">
+                                <strong>Quantity:</strong>
+                                <p>{{ item.quantity }} {{ item.unit }}</p>
+                            </div>
+                            
+                            <div class="col-6 mb-2">
+                                <strong>Category:</strong>
+                                <p>
+                                    <span class="badge" style="background-color: var(--secondary-color); color: white;">
+                                        {{ item.get_category_display }}
+                                    </span>
+                                </p>
+                            </div>
+                            
+                            <div class="col-6 mb-2">
+                                <strong>Expiry Date:</strong>
+                                <p style="color: {{ item.get_expiry_color }}; font-weight: 600;">
+                                    {{ item.expiry_date|date:"M d, Y"|default:"No date" }}
+                                </p>
+                            </div>
+                            
+                            <div class="col-12">
+                                <strong>Status:</strong>
+                                <p>
+                                    <span class="expiry-badge" style="background-color: {{ item.get_expiry_color }}20; color: {{ item.get_expiry_color }}; border: 1px solid {{ item.get_expiry_color }}40; padding: 0.5rem 1rem; border-radius: 6px;">
+                                        {{ item.get_expiry_icon }} {{ item.get_expiry_display }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Confirmation Actions -->
+                <div class="text-center">
+                    <form method="POST" action="{% url 'delete_item' item.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <i class="fas fa-trash"></i> Delete Permanently
+                        </button>
+                    </form>
+                    
+                    <a href="{% url 'inventory_list' %}" class="btn btn-outline btn-lg ml-2">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+                
+                <!-- Considerations -->
+                <div class="mt-4 pt-4 border-top">
+                    <h5 class="mb-3">
+                        <i class="fas fa-lightbulb"></i> Before Deleting, Consider:
+                    </h5>
+                    
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="d-flex align-items-start">
+                                <div style="color: var(--warning-color); margin-right: 10px;">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <div>
+                                    <strong>Recipe Impact</strong>
+                                    <p class="small mb-0">This item may be used in recipe suggestions</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-6 mb-3">
+                            <div class="d-flex align-items-start">
+                                <div style="color: var(--warning-color); margin-right: 10px;">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div>
+                                    <strong>Statistics</strong>
+                                    <p class="small mb-0">Will affect your inventory statistics</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Alternative:</strong> Consider <a href="{% url 'edit_item' item.id %}" style="color: var(--primary-color); font-weight: 600;">editing</a> the item instead of deleting it.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recovery Info -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="mb-3">
+                    <i class="fas fa-life-ring text-info"></i> About Deletion
+                </h5>
+                
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div style="color: var(--danger-color); margin-right: 10px; font-size: 1.5rem;">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <div>
+                                <strong>Permanent</strong>
+                                <p class="small mb-0">Cannot be recovered</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div style="color: var(--success-color); margin-right: 10px; font-size: 1.5rem;">
+                                <i class="fas fa-redo"></i>
+                            </div>
+                            <div>
+                                <strong>Re-addable</strong>
+                                <p class="small mb-0">Can add similar item later</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-muted mb-0">
+                    <i class="fas fa-exclamation-circle"></i>
+                    If you're deleting because the item is expired, consider tracking why it expired to reduce future waste.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .row.justify-content-center {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .expiry-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .align-items-start {
+        align-items: flex-start;
+    }
+    
+    .align-items-center {
+        align-items: center;
+    }
+    
+    .col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+    
+    .col-12 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    .border-top {
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .pt-4 {
+        padding-top: 1.5rem;
+    }
+    
+    .mt-4 {
+        margin-top: 1.5rem;
+    }
+    
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+    
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .mb-2 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+    }
+    
+    .ml-2 {
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}

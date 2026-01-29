@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+        <style>
+        /* Recipe Detail specific styles */
+        .recipe-header {
+            position: relative;
+            color: white;
+            text-align: center;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .recipe-header-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            filter: brightness(0.7);
+        }
+        
+        .recipe-header-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .recipe-title {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .recipe-category {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 1.5rem;
+        }
+        
+        .recipe-meta {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .meta-item {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius-md);
+            backdrop-filter: blur(5px);
+        }
+        
+        .meta-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .meta-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .recipe-content {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 992px) {
+            .recipe-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .recipe-title {
+                font-size: 2rem;
+            }
+            
+            .recipe-header-image {
+                height: 250px;
+            }
+        }
+        
+        .section-title {
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid var(--border-color);
+            font-size: 1.5rem;
+        }
+        
+        .ingredients-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        .ingredient-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: background-color var(--transition-fast);
+        }
+        
+        .ingredient-item:hover {
+            background-color: rgba(74, 111, 165, 0.05);
+        }
+        
+        .ingredient-item:last-child {
+            border-bottom: none;
+        }
+        
+        .checkmark {
+            color: var(--success-color);
+            font-weight: bold;
+            font-size: 1.2rem;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .crossmark {
+            color: var(--danger-color);
+            font-weight: bold;
+            font-size: 1.2rem;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ingredient-text {
+            flex: 1;
+            color: var(--text-primary);
+        }
+        
+        .ingredient-measure {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .inventory-status {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+        
+        .status-good {
+            background-color: rgba(56, 178, 172, 0.1);
+            color: var(--success-color);
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .status-ok {
+            background-color: rgba(237, 137, 54, 0.1);
+            color: var(--warning-color);
+            border-left: 4px solid var(--warning-color);
+        }
+        
+        .status-poor {
+            background-color: rgba(229, 62, 62, 0.1);
+            color: var(--danger-color);
+            border-left: 4px solid var(--danger-color);
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: var(--border-color);
+            border-radius: 10px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-color), var(--primary-color));
+            border-radius: 10px;
+            transition: width 1s ease-in-out;
+        }
+        
+        .instructions {
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+        
+        .instruction-step {
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            background-color: var(--bg-card);
+            border-radius: var(--radius-md);
+            border-left: 4px solid var(--primary-color);
+            position: relative;
+        }
+        
+        .step-number {
+            position: absolute;
+            left: -15px;
+            top: -15px;
+            background: var(--primary-color);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .step-text {
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+        
+        .recipe-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .tag {
+            padding: 0.5rem 1rem;
+            background-color: rgba(74, 111, 165, 0.1);
+            color: var(--primary-color);
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .no-image {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+        }
+        
+        .error-message {
+            background-color: rgba(229, 62, 62, 0.1);
+            color: var(--danger-color);
+            padding: 2rem;
+            border-radius: var(--radius-md);
+            text-align: center;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="{% url 'home' %}" class="logo">🛒 Grocify</a>
+        <div class="nav-links">
+            <span>Welcome, {{ user.username }}!</span>
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'inventory_list' %}">Inventory</a>
+            <a href="{% url 'recipes' %}">Recipes</a>
+            <a href="{% url 'logout' %}" class="logout-btn">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <a href="{% url 'recipes' %}" class="back-link">← Back to All Recipes</a>
+        
+        {% if recipe.error %}
+        <div class="error-message">
+            <h2>⚠️ Unable to Load Recipe</h2>
+            <p>{{ recipe.error }}</p>
+            <a href="{% url 'recipes' %}">Return to Recipes</a>
+        </div>
+        
+        {% else %}
+        <div class="recipe-detail-card">
+            <!-- Recipe Header with Image -->
+            <div class="recipe-header">
+                {% if recipe.image %}
+                <img src="{{ recipe.image }}" alt="{{ recipe.title }}" class="recipe-header-image">
+                {% else %}
+                <div class="no-image">🍳</div>
+                {% endif %}
+                
+                <div class="recipe-header-content">
+                    <h1 class="recipe-title">{{ recipe.title }}</h1>
+                    <div class="recipe-category">
+                        {{ recipe.category }} • {{ recipe.area }}
+                    </div>
+                    
+                    <div class="recipe-meta">
+                        <div class="meta-item">
+                            <span class="meta-value">{{ recipe.ingredients|length }}</span>
+                            <span class="meta-label">Ingredients</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-value">{{ recipe.instruction_steps|length }}</span>
+                            <span class="meta-label">Steps</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-value">{{ recipe.has_count }}/{{ recipe.total_count }}</span>
+                            <span class="meta-label">You Have</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recipe Content -->
+            <div class="recipe-content">
+                <!-- Left Column: Ingredients -->
+                <div class="ingredients-section">
+                    <h2 class="section-title">Ingredients</h2>
+                    
+                    <ul class="ingredients-list">
+                        {% for ingredient in recipe.ingredients %}
+                        <li class="ingredient-item">
+                            {% if ingredient.has_it %}
+                            <div class="checkmark" title="You have this ingredient">✓</div>
+                            {% else %}
+                            <div class="crossmark" title="You don't have this ingredient">✗</div>
+                            {% endif %}
+                            
+                            <div class="ingredient-text">
+                                <strong>{{ ingredient.name }}</strong>
+                                {% if ingredient.measure %}
+                                <div class="ingredient-measure">{{ ingredient.measure }}</div>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    
+                    <!-- Inventory Status -->
+                    <div class="inventory-status 
+                        {% if recipe.ingredients_percentage >= 70 %}status-good
+                        {% elif recipe.ingredients_percentage >= 40 %}status-ok
+                        {% else %}status-poor{% endif %}">
+                        
+                        <h3>Your Inventory Match</h3>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ recipe.ingredients_percentage }}%;"></div>
+                        </div>
+                        <p>
+                            You have <strong>{{ recipe.has_count }} out of {{ recipe.total_count }}</strong> ingredients
+                            ({{ recipe.ingredients_percentage }}%)
+                        </p>
+                        
+                        {% if recipe.ingredients_percentage >= 70 %}
+                        <p>🎉 Great! You can cook this recipe with minimal shopping!</p>
+                        {% elif recipe.ingredients_percentage >= 40 %}
+                        <p>⚠️ You have some ingredients, but need to shop for others.</p>
+                        {% else %}
+                        <p>📝 Consider adding missing items to your grocery list.</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Tags -->
+                    {% if recipe.tags %}
+                    <div style="margin-top: 30px;">
+                        <h3 class="section-title" style="font-size: 1.2rem;">Tags</h3>
+                        <div class="tags-container">
+                            {% for tag in recipe.tags %}
+                            <span class="tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Right Column: Instructions -->
+                <div class="instructions-section">
+                    <h2 class="section-title">Cooking Instructions</h2>
+                    
+                    <div class="instructions">
+                        {% for step in recipe.instruction_steps %}
+                        <div class="instruction-step">
+                            <div class="step-number">{{ step.number }}</div>
+                            <div class="step-text">{{ step.text }}</div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if not recipe.instruction_steps and recipe.instructions %}
+                        <div class="instruction-step">
+                            <div class="step-number">1</div>
+                            <div class="step-text">{{ recipe.instructions }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="recipe-actions">
+                        {% if recipe.youtube %}
+                        <a href="{{ recipe.youtube }}" target="_blank" class="btn btn-youtube">
+                            <span>▶️</span> Watch on YouTube
+                        </a>
+                        {% endif %}
+                        
+                        {% if recipe.source %}
+                        <a href="{{ recipe.source }}" target="_blank" class="btn btn-source">
+                            <span>🌐</span> View Original Source
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{% url 'recipes' %}" class="btn btn-primary">
+                            <span>🔙</span> Back to Recipes
+                        </a>
+                    </div>
+                    
+                    <!-- API Info -->
+                    <div style="margin-top: 40px; padding: 15px; background: #f8f9fa; border-radius: 8px; color: #7f8c8d; font-size: 0.9rem; text-align: center;">
+                        <p>📡 Recipe data fetched from <strong>TheMealDB API</strong> in real-time</p>
+                        <p>Recipe ID: <code>{{ recipe.id }}</code></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        // Animate progress bar on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const progressFill = document.querySelector('.progress-fill');
+            if (progressFill) {
+                // Reset width to 0
+                const targetWidth = progressFill.style.width;
+                progressFill.style.width = '0%';
+                
+                // Animate to target width
+                setTimeout(() => {
+                    progressFill.style.transition = 'width 1.5s ease-in-out';
+                    progressFill.style.width = targetWidth;
+                }, 500);
+            }
+            
+            // Log recipe data for debugging
+            console.log('Recipe Data:', {{ recipe|safe }});
+        });
+    </script>
+</body>
+</html>

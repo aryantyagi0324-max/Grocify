@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventory - Grocify{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Inventory specific styles */
+    .inventory-table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: var(--bg-card);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .inventory-table thead {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .inventory-table th {
+        padding: 1rem 1.25rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .inventory-table td {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .inventory-table tbody tr {
+        transition: background-color var(--transition-fast);
+    }
+    
+    .inventory-table tbody tr:hover {
+        background-color: rgba(74, 111, 165, 0.05);
+    }
+    
+    .inventory-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .expiry-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="mb-2">
+                    <i class="fas fa-boxes"></i> My Inventory
+                </h1>
+                <p class="text-muted mb-0">
+                    Manage your food items, track expiry dates, and reduce waste
+                </p>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'add_item' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add New Item
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h3 class="card-title mb-3">
+            <i class="fas fa-filter"></i> Filters
+        </h3>
+        
+        <div class="row">
+            <!-- Search Box -->
+            <div class="col">
+                <form method="GET" action="{% url 'inventory_list' %}" id="searchForm">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-search"></i> Search Items
+                        </label>
+                        <div class="input-group">
+                            <input type="text" 
+                                   name="search" 
+                                   id="searchInput"
+                                   class="form-control" 
+                                   placeholder="Search by item name..."
+                                   value="{{ search_query }}">
+                            <div class="input-group-append">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Category Filter -->
+            <div class="col">
+                <form method="GET" action="{% url 'inventory_list' %}" id="filterForm">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-tags"></i> Filter by Category
+                        </label>
+                        <select name="category" id="categorySelect" class="form-control" onchange="this.form.submit()">
+                            <option value="">All Categories</option>
+                            {% for value, label in categories %}
+                            <option value="{{ value }}" {% if selected_category == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Active Filters -->
+        {% if search_query or selected_category %}
+        <div class="mt-3 pt-3 border-top">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Active Filters:</strong>
+                    {% if search_query %}
+                    <span class="badge badge-primary ml-2">
+                        <i class="fas fa-search"></i> Search: "{{ search_query }}"
+                        <a href="?category={{ selected_category|default:'' }}" class="text-white ml-2">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </span>
+                    {% endif %}
+                    
+                    {% if selected_category %}
+                    <span class="badge badge-secondary ml-2">
+                        <i class="fas fa-tag"></i> Category: {{ selected_category }}
+                        <a href="?search={{ search_query|default:'' }}" class="text-white ml-2">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <a href="{% url 'inventory_list' %}" class="btn btn-outline btn-sm">
+                    <i class="fas fa-times"></i> Clear All Filters
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Inventory Table -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title mb-0">
+            <i class="fas fa-list"></i> Food Items ({{ items|length }})
+        </h2>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if items %}
+        <div class="table-responsive">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Quantity</th>
+                        <th>Category</th>
+                        <th>Expiry Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div style="font-size: 1.25rem; margin-right: 12px; color: {{ item.get_expiry_color }};">
+                                    {{ item.get_expiry_icon }}
+                                </div>
+                                <div>
+                                    <strong>{{ item.name }}</strong>
+                                    <div class="text-muted small">
+                                        Added {{ item.added_date|date:"M d, Y" }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-primary">
+                                {{ item.quantity }} {{ item.unit }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background-color: var(--secondary-color); color: white;">
+                                <i class="fas fa-tag"></i> {{ item.get_category_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: {{ item.get_expiry_color }};">
+                                {{ item.expiry_date|date:"M d, Y"|default:"No date" }}
+                            </div>
+                            <div class="text-muted small">
+                                {{ item.get_expiry_display }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="expiry-badge" style="background-color: {{ item.get_expiry_color }}20; color: {{ item.get_expiry_color }}; border: 1px solid {{ item.get_expiry_color }}40;">
+                                <span class="status-indicator" style="background-color: {{ item.get_expiry_color }};"></span>
+                                {% if item.get_expiry_status == "expired" %}
+                                    Expired
+                                {% elif item.get_expiry_status == "expires-today" %}
+                                    Today!
+                                {% elif item.get_expiry_status == "expiring-soon" %}
+                                    Soon
+                                {% elif item.get_expiry_status == "expiring-week" %}
+                                    This Week
+                                {% elif item.get_expiry_status == "good" %}
+                                    Good
+                                {% else %}
+                                    No Date
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'edit_item' item.id %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn btn-danger btn-sm" onclick="confirmDelete({{ item.id }}, '{{ item.name }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-inbox"></i>
+            </div>
+            <h3 class="mb-2">Your inventory is empty</h3>
+            <p class="text-muted mb-3">Start by adding your first food item!</p>
+            <a href="{% url 'add_item' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Your First Item
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Table Footer -->
+    {% if items %}
+    <div class="card-footer">
+        <div class="row align-items-center">
+            <div class="col">
+                <span class="text-muted">
+                    Showing {{ items|length }} item{{ items|length|pluralize }}
+                </span>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group" role="group">
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <a href="{% url 'add_item' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add More
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- JavaScript for delete confirmation -->
+<script>
+    function confirmDelete(itemId, itemName) {
+        if (confirm(`Are you sure you want to delete "${itemName}"?`)) {
+            // AJAX delete request
+            fetch(`/inventory/delete/${itemId}/ajax/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showMessage('success', data.message);
+                    // Reload after 1.5 seconds
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showMessage('error', 'Error deleting item: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Fallback to regular delete if AJAX fails
+                if (confirm('AJAX failed. Use regular delete?')) {
+                    window.location.href = `/inventory/delete/${itemId}/`;
+                }
+            });
+        }
+    }
+    
+    function showMessage(type, text) {
+        // Create message element
+        const message = document.createElement('div');
+        message.className = `alert alert-${type}`;
+        message.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+            ${text}
+        `;
+        
+        // Add to page
+        const container = document.querySelector('.container');
+        container.insertBefore(message, container.firstChild);
+        
+        // Remove after 5 seconds
+        setTimeout(() => message.remove(), 5000);
+    }
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Auto-submit search after typing stops
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            e.target.form.submit();
+        }, 500);
+    });
+</script>
+{% endblock %}

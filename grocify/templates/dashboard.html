@@ -1,0 +1,488 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Grocify{% endblock %}
+
+{% block content %}
+<!-- Welcome Banner -->
+<div class="card mb-4 welcome-banner">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="mb-2">
+                    <i class="fas fa-chart-line"></i> Welcome, {{ user.username }}!
+                </h1>
+                <p class="mb-0">Here's an overview of your kitchen inventory.</p>
+            </div>
+            <div class="col text-right">
+                <a href="{% url 'add_item' %}" class="btn btn-secondary">
+                    <i class="fas fa-plus"></i> Add New Item
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div style="font-size: 2.5rem; color: var(--primary-color); margin-bottom: 0.5rem;">
+                    <i class="fas fa-boxes"></i>
+                </div>
+                <h2 class="mb-1">{{ total_items }}</h2>
+                <p class="text-muted mb-0">Total Items</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div style="font-size: 2.5rem; color: var(--warning-color); margin-bottom: 0.5rem;">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h2 class="mb-1">{{ expiring_soon }}</h2>
+                <p class="text-muted mb-0">Expiring Soon</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div style="font-size: 2.5rem; color: var(--danger-color); margin-bottom: 0.5rem;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h2 class="mb-1">{{ expired_items }}</h2>
+                <p class="text-muted mb-0">Expired Items</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div style="font-size: 2.5rem; color: var(--success-color); margin-bottom: 0.5rem;">
+                    <i class="fas fa-calendar-week"></i>
+                </div>
+                <h2 class="mb-1">{{ expiry_summary.this_week }}</h2>
+                <p class="text-muted mb-0">Expire This Week</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expiry Alerts Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="card-title mb-0">
+            <i class="fas fa-bell"></i> Expiry Alerts
+        </h2>
+    </div>
+    <div class="card-body">
+        {% if expiring_items or expired_items_list %}
+            <!-- Expiring Soon Alerts -->
+            {% if expiring_items %}
+            <div class="mb-4">
+                <h4 class="mb-3" style="color: var(--warning-color);">
+                    <i class="fas fa-clock"></i> Expiring Soon (Next 3 Days)
+                </h4>
+                
+                <div class="row">
+                    {% for item in expiring_items %}
+                    <div class="col-12 mb-3">
+                        <div class="card" style="border-left: 4px solid var(--warning-color);">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col">
+                                        <div class="d-flex align-items-center">
+                                            <div style="font-size: 1.5rem; margin-right: 1rem; color: var(--warning-color);">
+                                                {% if item.get_expiry_status == 'expires-today' %}
+                                                    <i class="fas fa-fire"></i>
+                                                {% else %}
+                                                    <i class="fas fa-clock"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <h5 class="mb-1">{{ item.name }}</h5>
+                                                <p class="text-muted mb-0">
+                                                    {{ item.quantity }} {{ item.unit }} • 
+                                                    <strong style="color: var(--warning-color);">{{ item.expiry_date|date:"M d, Y" }}</strong> • 
+                                                    {{ item.get_expiry_display }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <a href="{% url 'edit_item' item.id %}" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-edit"></i> Update
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Expired Items Alerts -->
+            {% if expired_items_list %}
+            <div class="mb-4">
+                <h4 class="mb-3" style="color: var(--danger-color);">
+                    <i class="fas fa-exclamation-triangle"></i> Expired Items
+                </h4>
+                
+                <div class="row">
+                    {% for item in expired_items_list %}
+                    <div class="col-12 mb-3">
+                        <div class="card" style="border-left: 4px solid var(--danger-color);">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col">
+                                        <div class="d-flex align-items-center">
+                                            <div style="font-size: 1.5rem; margin-right: 1rem; color: var(--danger-color);">
+                                                <i class="fas fa-skull-crossbones"></i>
+                                            </div>
+                                            <div>
+                                                <h5 class="mb-1">{{ item.name }}</h5>
+                                                <p class="text-muted mb-0">
+                                                    {{ item.quantity }} {{ item.unit }} • 
+                                                    <strong style="color: var(--danger-color);">{{ item.expiry_date|date:"M d, Y" }}</strong> • 
+                                                    {{ item.get_expiry_display }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'edit_item' item.id %}" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            <a href="{% url 'delete_item' item.id %}" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <!-- No Alerts -->
+            <div class="text-center py-4">
+                <div style="font-size: 3rem; color: var(--success-color); margin-bottom: 1rem;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 class="mb-2">No Expiry Alerts</h3>
+                <p class="text-muted">Great! All your food items are fresh and not expiring soon.</p>
+                <a href="{% url 'add_item' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus"></i> Add Your First Item
+                </a>
+            </div>
+        {% endif %}
+        
+        <!-- Quick Actions -->
+        <div class="mt-4 pt-4 border-top">
+            <h5 class="mb-3">Quick Actions:</h5>
+            <div class="row">
+                <div class="col">
+                    <a href="{% url 'inventory_list' %}" class="btn btn-outline w-100">
+                        <i class="fas fa-list"></i> View All Inventory
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{% url 'recipes' %}" class="btn btn-outline w-100">
+                        <i class="fas fa-utensils"></i> Get Recipes
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="{% url 'add_item' %}" class="btn btn-outline w-100">
+                        <i class="fas fa-plus"></i> Add New Item
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Items & Recipe Suggestions -->
+<div class="row mb-4">
+    <!-- Recent Items -->
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-header">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-history"></i> Recently Added
+                </h2>
+            </div>
+            <div class="card-body">
+                {% if recent_items %}
+                <div class="list-group">
+                    {% for item in recent_items %}
+                    <div class="list-group-item border-0 px-0 py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ item.name }}</h6>
+                                <small class="text-muted">
+                                    {{ item.quantity }} {{ item.unit }} • Added {{ item.added_date|date:"M d" }}
+                                </small>
+                            </div>
+                            <span class="badge" style="background-color: {{ item.get_expiry_color }}20; color: {{ item.get_expiry_color }};">
+                                {{ item.get_expiry_icon }} {{ item.get_expiry_display|truncatechars:15 }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <div style="font-size: 2rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <p class="text-muted mb-0">No items added yet</p>
+                    <a href="{% url 'add_item' %}" class="btn btn-primary btn-sm mt-2">
+                        Add First Item
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recipe Suggestions Preview -->
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-header">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-utensils"></i> Recipe Suggestions
+                </h2>
+            </div>
+            <div class="card-body">
+                {% if total_items > 0 %}
+                <p class="text-muted mb-3">
+                    Based on {{ total_items }} items in your inventory
+                </p>
+                
+                <div class="mb-3">
+                    <div class="card" style="border-left: 4px solid var(--secondary-color);">
+                        <div class="card-body py-2">
+                            <div class="d-flex align-items-center">
+                                <div style="font-size: 1.5rem; margin-right: 1rem; color: var(--secondary-color);">
+                                    <i class="fas fa-carrot"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">Chicken Fried Rice</h6>
+                                    <small class="text-muted">Uses: Chicken, Rice, Eggs</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="card" style="border-left: 4px solid var(--accent-color);">
+                        <div class="card-body py-2">
+                            <div class="d-flex align-items-center">
+                                <div style="font-size: 1.5rem; margin-right: 1rem; color: var(--accent-color);">
+                                    <i class="fas fa-egg"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">Tomato Egg Stir Fry</h6>
+                                    <small class="text-muted">Uses: Tomato, Eggs, Onion</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="{% url 'recipes' %}" class="btn btn-secondary">
+                        <i class="fas fa-utensils"></i> View All Recipes
+                    </a>
+                </div>
+                
+                {% else %}
+                <div class="text-center py-3">
+                    <div style="font-size: 2rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <p class="text-muted mb-0">Add items to get recipe suggestions</p>
+                    <a href="{% url 'add_item' %}" class="btn btn-primary btn-sm mt-2">
+                        Add Items
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Card -->
+<div class="card">
+    <div class="card-body text-center">
+        <h4 class="mb-3">
+            <i class="fas fa-chart-pie"></i> Today's Summary
+        </h4>
+        <div class="row">
+            <div class="col">
+                <div class="display-4" style="color: var(--primary-color);">{{ total_items }}</div>
+                <small class="text-muted">Total Items</small>
+            </div>
+            <div class="col">
+                <div class="display-4" style="color: var(--success-color);">{{ expiry_summary.this_week }}</div>
+                <small class="text-muted">Good This Week</small>
+            </div>
+            <div class="col">
+                <div class="display-4" style="color: var(--warning-color);">{{ expiring_soon }}</div>
+                <small class="text-muted">Need Attention</small>
+            </div>
+            <div class="col">
+                <div class="display-4" style="color: var(--danger-color);">{{ expired_items }}</div>
+                <small class="text-muted">Require Action</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -0.75rem;
+    }
+    
+    .col {
+        flex: 1;
+        padding: 0 0.75rem;
+        min-width: 200px;
+    }
+    
+    .col-auto {
+        flex: 0 0 auto;
+        width: auto;
+        padding: 0 0.75rem;
+    }
+    
+    .col-12 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding: 0 0.75rem;
+    }
+    
+    .text-right {
+        text-align: right;
+    }
+    
+    .align-items-center {
+        align-items: center;
+    }
+    
+    .h-100 {
+        height: 100%;
+    }
+    
+    .list-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .list-group-item {
+        border: 1px solid var(--border-color);
+    }
+    
+    .border-0 {
+        border: 0 !important;
+    }
+    
+    .px-0 {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    .py-3 {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .justify-content-between {
+        justify-content: space-between;
+    }
+    
+    .btn-group {
+        display: inline-flex;
+    }
+    
+    .border-top {
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .pt-4 {
+        padding-top: 1.5rem;
+    }
+    
+    .mt-4 {
+        margin-top: 1.5rem;
+    }
+    
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+    
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .mb-2 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .mb-1 {
+        margin-bottom: 0.25rem;
+    }
+    
+    .mb-0 {
+        margin-bottom: 0;
+    }
+    
+    .py-4 {
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+    }
+    
+    .py-3 {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    
+    .py-2 {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    .display-4 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    
+    .w-100 {
+        width: 100%;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

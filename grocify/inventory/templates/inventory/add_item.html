@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Item - Grocify{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col" style="max-width: 600px; margin: 0 auto;">
+        <!-- Form Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title mb-0">
+                    <i class="fas fa-plus-circle"></i> Add Food Item
+                </h2>
+            </div>
+            
+            <div class="card-body">
+                <!-- Back Link -->
+                <div class="mb-4">
+                    <a href="{% url 'inventory_list' %}" class="btn btn-outline btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Inventory
+                    </a>
+                </div>
+                
+                <!-- Form -->
+                <form method="POST" action="{% url 'add_item' %}">
+                    {% csrf_token %}
+                    
+                    <!-- Name Field -->
+                    <div class="form-group">
+                        <label class="form-label" for="id_name">
+                            <i class="fas fa-tag"></i> Item Name
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="alert alert-danger mt-1">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.name.errors }}
+                        </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Example: Milk, Bread, Apples
+                        </small>
+                    </div>
+                    
+                    <!-- Quantity & Unit -->
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label class="form-label" for="id_quantity">
+                                    <i class="fas fa-balance-scale"></i> Quantity
+                                </label>
+                                {{ form.quantity }}
+                                {% if form.quantity.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.quantity.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col">
+                            <div class="form-group">
+                                <label class="form-label" for="id_unit">
+                                    <i class="fas fa-weight"></i> Unit
+                                </label>
+                                {{ form.unit }}
+                                {% if form.unit.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.unit.errors }}
+                                </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> kg, liters, pieces, etc.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Category -->
+                    <div class="form-group">
+                        <label class="form-label" for="id_category">
+                            <i class="fas fa-tags"></i> Category
+                        </label>
+                        {{ form.category }}
+                        {% if form.category.errors %}
+                        <div class="alert alert-danger mt-1">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.category.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Expiry Date -->
+                    <div class="form-group">
+                        <label class="form-label" for="id_expiry_date">
+                            <i class="fas fa-calendar-alt"></i> Expiry Date
+                        </label>
+                        {{ form.expiry_date }}
+                        {% if form.expiry_date.errors %}
+                        <div class="alert alert-danger mt-1">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.expiry_date.errors }}
+                        </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Click to open calendar picker
+                        </small>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="form-group mt-4">
+                        <div class="row">
+                            <div class="col">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-save"></i> Add to Inventory
+                                </button>
+                            </div>
+                            <div class="col">
+                                <a href="{% url 'inventory_list' %}" class="btn btn-outline w-100">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Quick Tips -->
+                <div class="mt-4 pt-4 border-top">
+                    <h5 class="mb-3">
+                        <i class="fas fa-lightbulb"></i> Quick Tips
+                    </h5>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <div class="d-flex align-items-start">
+                                <div style="color: var(--success-color); margin-right: 8px;">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <strong>Be Specific</strong>
+                                    <p class="small mb-0">"Greek Yogurt" vs "Yogurt"</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="d-flex align-items-start">
+                                <div style="color: var(--success-color); margin-right: 8px;">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <strong>Check Dates</strong>
+                                    <p class="small mb-0">Set accurate expiry dates</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="d-flex align-items-start">
+                                <div style="color: var(--success-color); margin-right: 8px;">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <strong>Use Units</strong>
+                                    <p class="small mb-0">kg, liters, pieces, etc.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="d-flex align-items-start">
+                                <div style="color: var(--success-color); margin-right: 8px;">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <strong>Categorize</strong>
+                                    <p class="small mb-0">Helps with filtering</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Why Track Expiry Card -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="mb-3">
+                    <i class="fas fa-question-circle text-primary"></i> Why Track Expiry Dates?
+                </h5>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Reduce Food Waste:</strong> Households waste 30% of food. Tracking expiry dates helps you use food before it goes bad.
+                </div>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>Save Money:</strong> Stop buying duplicates and use what you already have efficiently.
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Stay Healthy:</strong> Avoid consuming expired food that could make you sick.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for date picker -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set minimum date to today for expiry date
+        const expiryDateField = document.querySelector('input[type="date"]');
+        if (expiryDateField) {
+            const today = new Date().toISOString().split('T')[0];
+            expiryDateField.min = today;
+            
+            // Add date picker styling
+            expiryDateField.style.cursor = 'pointer';
+        }
+        
+        // Style form inputs
+        const inputs = document.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.className = 'form-control';
+            input.style.marginBottom = '0';
+        });
+        
+        // Add placeholders
+        const nameField = document.getElementById('id_name');
+        if (nameField) nameField.placeholder = 'Enter item name';
+        
+        const quantityField = document.getElementById('id_quantity');
+        if (quantityField) quantityField.placeholder = 'Quantity';
+        
+        const unitField = document.getElementById('id_unit');
+        if (unitField) unitField.placeholder = 'Unit';
+    });
+</script>
+
+<style>
+    .row.justify-content-center {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .w-100 {
+        width: 100%;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .align-items-start {
+        align-items: flex-start;
+    }
+    
+    .col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+    
+    .border-top {
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .pt-4 {
+        padding-top: 1.5rem;
+    }
+    
+    .mt-4 {
+        margin-top: 1.5rem;
+    }
+    
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+    
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .mb-2 {
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}

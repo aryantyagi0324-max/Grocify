@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+
+{% block title %}Recipe Suggestions - Grocify{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Recipe specific styles */
+    .recipes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .recipe-card {
+        background-color: var(--bg-card);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+        transition: all var(--transition-normal);
+        height: 100%;
+    }
+    
+    .recipe-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary-color);
+    }
+    
+    .recipe-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .recipe-content {
+        padding: 1.25rem;
+    }
+    
+    .recipe-title {
+        font-size: 1.25rem;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+    
+    .recipe-meta {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    
+    .recipe-description {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+    }
+    
+    .ingredients-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .ingredient-item {
+        padding: 0.5rem 0.75rem;
+        background-color: rgba(74, 111, 165, 0.05);
+        border-radius: var(--radius-sm);
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+    
+    .recipe-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    
+    .no-recipes {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    
+    .no-recipes-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    
+    .api-info {
+        background-color: rgba(74, 111, 165, 0.05);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        margin-top: 1.5rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        text-align: center;
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .ingredients-used {
+        background-color: rgba(56, 178, 172, 0.1);
+        color: var(--text-primary);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--success-color);
+    }
+    
+    .error-message {
+        background-color: rgba(229, 62, 62, 0.1);
+        color: var(--danger-color);
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 1.5rem;
+        text-align: center;
+        border-left: 4px solid var(--danger-color);
+    }
+    
+    .tag {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background-color: rgba(74, 111, 165, 0.1);
+        color: var(--primary-color);
+        border-radius: 50px;
+        font-size: 0.8rem;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .tags-container {
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="card mb-4" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white;">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="mb-2">
+                    <i class="fas fa-utensils"></i> Recipe Suggestions
+                </h1>
+                <p class="mb-0">Get cooking ideas based on what you already have</p>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'inventory_list' %}" class="btn btn-outline" style="color: white; border-color: white;">
+                    <i class="fas fa-boxes"></i> Manage Inventory
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col">
+                <div class="display-4" style="color: var(--primary-color);">{{ total_items }}</div>
+                <small class="text-muted">Items in Inventory</small>
+            </div>
+            <div class="col">
+                <div class="display-4" style="color: var(--secondary-color);">{{ recipe_data.recipes|length }}</div>
+                <small class="text-muted">Recipe Suggestions</small>
+            </div>
+            <div class="col">
+                <div class="display-4" style="color: var(--accent-color);">{{ recipe_data.api_used }}</div>
+                <small class="text-muted">Recipe Source</small>
+            </div>
+        </div>
+        
+        {% if recipe_data.ingredients_searched %}
+        <div class="ingredients-used mt-3">
+            <strong><i class="fas fa-search"></i> Searching recipes using:</strong> 
+            {{ recipe_data.ingredients_searched|join:", " }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Error Message -->
+{% if recipe_data.error %}
+<div class="error-message">
+    <h3><i class="fas fa-exclamation-triangle"></i> Unable to fetch recipes</h3>
+    <p>{{ recipe_data.error }}</p>
+    <p class="mt-2">Try adding more food items to your inventory!</p>
+    <a href="{% url 'add_item' %}" class="btn btn-primary mt-2">
+        <i class="fas fa-plus"></i> Add Food Items
+    </a>
+</div>
+{% endif %}
+
+<!-- Recipe Cards -->
+{% if recipe_data.recipes %}
+<div class="recipes-grid mb-4">
+    {% for recipe in recipe_data.recipes %}
+    <div class="recipe-card">
+        {% if recipe.image %}
+        <img src="{{ recipe.image }}" alt="{{ recipe.title }}" class="recipe-image">
+        {% else %}
+        <div class="recipe-image" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">
+            <i class="fas fa-utensils"></i>
+        </div>
+        {% endif %}
+        
+        <div class="recipe-content">
+            <h2 class="recipe-title">{{ recipe.title }}</h2>
+            
+            <div class="recipe-meta">
+                <div class="meta-item">
+                    <i class="fas fa-clock"></i>
+                    <span>{{ recipe.cooking_time }} min</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-users"></i>
+                    <span>{{ recipe.servings }} servings</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-list"></i>
+                    <span>{{ recipe.ingredients_count }} ingredients</span>
+                </div>
+            </div>
+            
+            <div class="recipe-description">
+                {{ recipe.short_instructions }}
+            </div>
+            
+            {% if recipe.ingredients %}
+            <div class="ingredients-grid">
+                {% for ingredient in recipe.ingredients|slice:":4" %}
+                <div class="ingredient-item">
+                    <i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 5px;"></i>
+                    {{ ingredient|truncatechars:20 }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if recipe.tags %}
+            <div class="tags-container">
+                {% for tag in recipe.tags|slice:":3" %}
+                <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="recipe-actions">
+                {% if recipe.youtube %}
+                <a href="{{ recipe.youtube }}" target="_blank" class="btn btn-danger btn-sm">
+                    <i class="fab fa-youtube"></i> Watch
+                </a>
+                {% endif %}
+                
+                {% if recipe.source %}
+                <a href="{{ recipe.source }}" target="_blank" class="btn btn-primary btn-sm">
+                    <i class="fas fa-external-link-alt"></i> Full Recipe
+                </a>
+                {% else %}
+                <a href="{% url 'recipe_detail' recipe.id %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-info-circle"></i> View Details
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="api-info">
+    <strong><i class="fas fa-database"></i> Powered by TheMealDB API</strong> - Free recipe database with real cooking instructions
+</div>
+
+{% else %}
+<!-- No Recipes -->
+<div class="no-recipes">
+    <div class="no-recipes-icon">
+        <i class="fas fa-utensils"></i>
+    </div>
+    <h3 class="mb-2">No recipe suggestions yet</h3>
+    <p class="text-muted mb-3">Add more food items to your inventory to get personalized recipe suggestions!</p>
+    <a href="{% url 'add_item' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Food Items
+    </a>
+</div>
+{% endif %}
+{% endblock %}
