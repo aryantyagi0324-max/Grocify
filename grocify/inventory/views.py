@@ -8,6 +8,225 @@ from .forms import CustomUserCreationForm, LoginForm, FoodItemForm
 from .models import FoodItem
 from django.utils import timezone
 from datetime import timedelta
+import re
+import requests
+from django.core.cache import cache
+import random
+import threading
+
+# Helper functions for recipe instructions
+def create_smart_instructions(meal, ingredients):
+    """Create detailed cooking instructions from scratch"""
+    steps = []
+    step_num = 1
+    
+    # Get recipe info
+    title = meal.get('strMeal', 'Recipe').lower()
+    category = meal.get('strCategory', 'General').lower()
+    area = meal.get('strArea', '').lower()
+    
+    # Step 1: Preparation
+    prep_items = []
+    for ing in ingredients[:8]:  # Limit to first 8 ingredients
+        if ing['measure'].strip():
+            prep_items.append(f"{ing['measure']} {ing['name']}")
+        else:
+            prep_items.append(ing['name'])
+    
+    if prep_items:
+        steps.append({
+            'number': step_num,
+            'text': f"Gather and prepare your ingredients: {', '.join(prep_items[:5])}" + 
+                   (f" and {len(prep_items) - 5} more items" if len(prep_items) > 5 else "")
+        })
+        step_num += 1
+    
+    # Step 2: Initial preparation based on category
+    if 'chicken' in title or 'meat' in title or 'beef' in title or 'pork' in title:
+        steps.append({
+            'number': step_num,
+            'text': f"Clean and pat dry the meat. Cut into bite-sized pieces if needed. Season with salt and pepper."
+        })
+        step_num += 1
+    elif 'vegetable' in category or 'salad' in category or any(v in title for v in ['salad', 'vegetable', 'veggie']):
+        steps.append({
+            'number': step_num,
+            'text': f"Wash all vegetables thoroughly. Chop, dice, or slice according to your preference."
+        })
+        step_num += 1
+    elif 'dessert' in category or 'cake' in title or 'cookie' in title or 'pie' in title:
+        steps.append({
+            'number': step_num,
+            'text': f"Preheat oven to 350°F (175°C). Grease baking dish or line with parchment paper."
+        })
+        step_num += 1
+    
+    # Step 3: Cooking method based on area/category
+    cooking_methods = {
+        'italian': "Heat olive oil in a large pan over medium heat",
+        'mexican': "Heat oil in a skillet or comal over medium-high heat",
+        'indian': "Heat ghee or oil in a kadai or deep pan over medium heat",
+        'chinese': "Heat vegetable oil in a wok over high heat",
+        'american': "Heat oil or butter in a large skillet over medium heat",
+        'british': "Melt butter in a saucepan over medium heat",
+        'japanese': "Prepare your cooking station with all ingredients within reach",
+        'french': "Melt butter in a sauté pan over medium-low heat",
+    }
+    
+    cooking_method = cooking_methods.get(area, "Heat oil in a pan over medium heat")
+    steps.append({
+        'number': step_num,
+        'text': cooking_method + "."
+    })
+    step_num += 1
+    
+    # Step 4-6: Cooking steps
+    cooking_steps = [
+        "Add main ingredients and cook until they start to brown, about 5-7 minutes",
+        "Add aromatic vegetables (like onions, garlic, ginger) and cook until fragrant, about 2-3 minutes",
+        "Add any spices or seasonings and toast for 30 seconds to release their flavors",
+        "Add liquid ingredients (broth, water, cream, tomatoes) and bring to a simmer",
+        "Reduce heat to low, cover, and let cook for 15-20 minutes until everything is tender",
+        "Taste and adjust seasoning with salt, pepper, or other spices as needed",
+        "If the dish is too thin, let it simmer uncovered to reduce. If too thick, add a splash of water or broth",
+        "Cook until all ingredients are tender and flavors are well combined"
+    ]
+    
+    # Select appropriate cooking steps based on dish type
+    if 'soup' in title or 'stew' in title or 'curry' in title:
+        selected_steps = [0, 3, 4, 5, 6]  # Indexes for soup-like dishes
+    elif 'stir' in title or 'fry' in title:
+        selected_steps = [0, 1, 2, 7]  # Indexes for stir-fries
+    elif 'bake' in title or 'roast' in title:
+        selected_steps = [4, 5, 7]  # Indexes for baked dishes
+    else:
+        selected_steps = [0, 1, 2, 4, 5]  # Default selection
+    
+    for idx in selected_steps[:3]:  # Take first 3 selected steps
+        steps.append({
+            'number': step_num,
+            'text': cooking_steps[idx] + "."
+        })
+        step_num += 1
+    
+    # Step 7: Finishing touches
+    finishing_options = [
+        "Garnish with fresh herbs before serving",
+        "Drizzle with a finishing oil or sauce",
+        "Serve with suggested accompaniments",
+        "Let rest for 5 minutes before serving to allow flavors to meld",
+        "Adjust consistency with additional liquid if needed"
+    ]
+    
+    steps.append({
+        'number': step_num,
+        'text': random.choice(finishing_options) + "."
+    })
+    step_num += 1
+    
+    # Final step: Serving
+    serving_options = [
+        f"Serve hot, garnished with fresh herbs",
+        f"Enjoy immediately while warm and fresh",
+        f"Plate beautifully and serve with your favorite sides",
+        f"Serve in individual bowls or on a large platter for sharing"
+    ]
+    
+    steps.append({
+        'number': step_num,
+        'text': random.choice(serving_options) + "."
+    })
+    
+    return steps
+
+def parse_existing_instructions(instructions):
+    """Parse existing instructions into proper steps"""
+    steps = []
+    
+    if not instructions or len(instructions.strip()) < 10:
+        return steps
+    
+    # Clean the instructions
+    instructions = instructions.strip()
+    
+    # Try different splitting methods
+    # Method 1: Split by numbered steps (1., 2., etc.)
+    numbered_pattern = r'(\d+)[\.\)]\s*'
+    if re.search(numbered_pattern, instructions):
+        parts = re.split(numbered_pattern, instructions)
+        step_num = 1
+        for i in range(1, len(parts), 2):
+            if i + 1 < len(parts):
+                text = parts[i + 1].strip()
+                if text:
+                    # Clean up the text
+                    text = re.sub(r'^\d+[\.\)]\s*', '', text)
+                    text = text.strip()
+                    
+                    # Capitalize first letter
+                    if text and not text[0].isupper():
+                        text = text[0].upper() + text[1:]
+                    
+                    # Ensure it ends with punctuation
+                    if text and not text[-1] in '.!?':
+                        text += '.'
+                    
+                    steps.append({
+                        'number': step_num,
+                        'text': text
+                    })
+                    step_num += 1
+    
+    # Method 2: Split by line breaks
+    if not steps and '\n' in instructions:
+        lines = instructions.split('\n')
+        for i, line in enumerate(lines, 1):
+            line = line.strip()
+            if line and len(line) > 5:  # Skip very short lines
+                # Clean the line
+                line = re.sub(r'^\d+[\.\)]\s*', '', line)
+                line = line.strip()
+                
+                if line:
+                    # Capitalize first letter
+                    if line and not line[0].isupper():
+                        line = line[0].upper() + line[1:]
+                    
+                    # Ensure it ends with punctuation
+                    if line and not line[-1] in '.!?':
+                        line += '.'
+                    
+                    steps.append({
+                        'number': i,
+                        'text': line
+                    })
+    
+    # Method 3: Split by sentences
+    if not steps:
+        # Split by sentence endings
+        sentences = re.split(r'(?<=[.!?])\s+', instructions)
+        for i, sentence in enumerate(sentences, 1):
+            sentence = sentence.strip()
+            if sentence and len(sentence.split()) > 3:  # Skip very short sentences
+                # Clean the sentence
+                sentence = re.sub(r'^\d+[\.\)]\s*', '', sentence)
+                sentence = sentence.strip()
+                
+                if sentence:
+                    # Capitalize first letter
+                    if sentence and not sentence[0].isupper():
+                        sentence = sentence[0].upper() + sentence[1:]
+                    
+                    steps.append({
+                        'number': i,
+                        'text': sentence
+                    })
+    
+    # Limit to reasonable number of steps
+    if len(steps) > 12:
+        steps = steps[:12]
+    
+    return steps
 
 # Public views
 def home(request):
@@ -76,7 +295,7 @@ def dashboard(request):
     
     user_items = FoodItem.objects.filter(user=request.user)
     
-    # Get today's date - FIXED VERSION
+    # Get today's date
     today = date.today()
     
     # Calculate stats
@@ -140,18 +359,13 @@ def dashboard(request):
         'expiring_soon': expiring_soon_count,
         'expired_items': expired_count,
         'recent_items': recent_items,
-        # Add expiry data
         'expiring_items': expiring_items,
         'expired_items_list': expired_items_display,
         'expiry_summary': expiry_summary,
-        'today': today,  # This should now have a value
+        'today': today,
     }
     
-    
-    
     return render(request, 'dashboard.html', context)
-    
-  
 
 @login_required
 def inventory_list(request):
@@ -254,10 +468,10 @@ def delete_item_ajax(request, item_id):
 
 @login_required
 def recipes(request):
-    """Recipe suggestions page"""
+    """Recipe suggestions page WITH performance optimizations"""
     user_items = FoodItem.objects.filter(user=request.user)
     
-    # Get recipe suggestions
+    # Get recipe suggestions (will use cache if available)
     recipe_data = get_recipe_suggestions(user_items)
     
     context = {
@@ -271,11 +485,8 @@ def recipes(request):
 @login_required
 def recipe_detail(request, recipe_id):
     """Detailed recipe view with actual data from TheMealDB"""
-    import requests
-    from django.core.cache import cache
-    
     # Check cache first
-    cache_key = f"recipe_detail_{recipe_id}"
+    cache_key = f"recipe_detail_full_{recipe_id}"
     recipe_data = cache.get(cache_key)
     
     if not recipe_data:
@@ -284,7 +495,7 @@ def recipe_detail(request, recipe_id):
             url = "https://www.themealdb.com/api/json/v1/1/lookup.php"
             params = {'i': recipe_id}
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=8)
             
             if response.status_code == 200:
                 data = response.json()
@@ -321,21 +532,18 @@ def recipe_detail(request, recipe_id):
                     has_count = sum(1 for ing in ingredients if ing.get('has_it'))
                     total_count = len(ingredients)
                     
-                    # Format instructions (split into steps)
+                    # NEW: Create proper cooking instructions
                     instructions = meal.get('strInstructions', '')
-                    instruction_steps = []
-                    if instructions:
-                        # Split by newlines or numbers
-                        steps = instructions.split('\r\n')
-                        if len(steps) == 1:
-                            steps = instructions.split('. ')
-                        
-                        for i, step in enumerate(steps, 1):
-                            if step.strip():
-                                instruction_steps.append({
-                                    'number': i,
-                                    'text': step.strip().strip('.')
-                                })
+                    
+                    # Try to parse existing instructions
+                    parsed_steps = parse_existing_instructions(instructions)
+                    
+                    # If parsed instructions are good (at least 3 steps), use them
+                    if len(parsed_steps) >= 3:
+                        instruction_steps = parsed_steps
+                    else:
+                        # Generate smart instructions from scratch
+                        instruction_steps = create_smart_instructions(meal, ingredients)
                     
                     # Prepare recipe data
                     recipe_data = {
@@ -344,7 +552,7 @@ def recipe_detail(request, recipe_id):
                         'category': meal.get('strCategory', ''),
                         'area': meal.get('strArea', ''),
                         'instructions': instructions,
-                        'instruction_steps': instruction_steps if instruction_steps else [{'number': 1, 'text': instructions}],
+                        'instruction_steps': instruction_steps,
                         'image': meal.get('strMealThumb', ''),
                         'youtube': meal.get('strYoutube', ''),
                         'source': meal.get('strSource', ''),
@@ -353,6 +561,7 @@ def recipe_detail(request, recipe_id):
                         'has_count': has_count,
                         'total_count': total_count,
                         'ingredients_percentage': int((has_count / total_count * 100)) if total_count > 0 else 0,
+                        'cached': False
                     }
                     
                     # Cache for 24 hours
@@ -365,6 +574,8 @@ def recipe_detail(request, recipe_id):
                 
         except Exception as e:
             recipe_data = {'error': f'Error fetching recipe: {str(e)}'}
+    else:
+        recipe_data['cached'] = True
     
     context = {
         'page_title': recipe_data.get('title', 'Recipe Details') if isinstance(recipe_data, dict) else 'Recipe Details',
