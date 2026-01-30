@@ -25,7 +25,7 @@ class FoodItem(models.Model):
     # Database fields (columns)
     name = models.CharField(max_length=200)
     quantity = models.PositiveIntegerField(default=1)
-    unit = models.CharField(max_length=50, default='piece')  # kg, liter, piece, etc.
+    unit = models.CharField(max_length=50)  # kg, liter, piece, etc.
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     expiry_date = models.DateField()
     added_date = models.DateTimeField(auto_now_add=True)  # Auto-set when added
