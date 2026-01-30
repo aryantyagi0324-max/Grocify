@@ -1,17 +1,16 @@
 {% extends 'base.html' %}
 
-{% block title %}Recipe Suggestions - Grocify{% endblock %}
+{% block title %}My Inventory - Grocify{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Recipe specific styles */
-    .recipes-grid {
+    .inventory-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 1.5rem;
     }
     
-    .recipe-card {
+    .inventory-card {
         background-color: var(--bg-card);
         border-radius: var(--radius-lg);
         overflow: hidden;
@@ -19,40 +18,46 @@
         border: 1px solid var(--border-color);
         transition: all var(--transition-normal);
         height: 100%;
-        position: relative;
     }
     
-    .recipe-card:hover {
+    .inventory-card:hover {
         transform: translateY(-5px);
         box-shadow: var(--shadow-lg);
         border-color: var(--primary-color);
     }
     
-    .recipe-card.loading {
-        opacity: 0.7;
-        min-height: 350px;
+    .inventory-card.expiring-soon {
+        border-left: 4px solid var(--warning-color);
     }
     
-    .recipe-image {
-        width: 100%;
-        height: 200px;
-        object-fit: cover;
+    .inventory-card.expired {
+        border-left: 4px solid var(--danger-color);
+    }
+    
+    .inventory-card.good {
+        border-left: 4px solid var(--success-color);
+    }
+    
+    .inventory-header {
+        padding: 1.25rem;
         border-bottom: 1px solid var(--border-color);
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     
-    .recipe-content {
+    .inventory-content {
         padding: 1.25rem;
     }
     
-    .recipe-title {
+    .item-name {
         font-size: 1.25rem;
         color: var(--text-primary);
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.5rem;
         line-height: 1.4;
     }
     
-    .recipe-meta {
+    .item-meta {
         display: flex;
         gap: 1rem;
         margin-bottom: 1rem;
@@ -66,297 +71,287 @@
         gap: 0.35rem;
     }
     
-    .recipe-description {
-        color: var(--text-secondary);
-        line-height: 1.6;
-        margin-bottom: 1rem;
-        font-size: 0.95rem;
-    }
-    
-    .ingredients-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+    .expiry-status {
+        display: inline-flex;
+        align-items: center;
         gap: 0.5rem;
-        margin-bottom: 1.25rem;
-    }
-    
-    .ingredient-item {
-        padding: 0.5rem 0.75rem;
-        background-color: rgba(74, 111, 165, 0.05);
+        padding: 0.5rem 1rem;
         border-radius: var(--radius-sm);
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-    }
-    
-    .recipe-actions {
-        display: flex;
-        gap: 0.75rem;
+        font-weight: 600;
+        font-size: 0.9rem;
         margin-top: 1rem;
     }
     
-    .no-recipes {
+    .status-expired {
+        background-color: rgba(229, 62, 62, 0.1);
+        color: var(--danger-color);
+    }
+    
+    .status-expiring {
+        background-color: rgba(237, 137, 54, 0.1);
+        color: var(--warning-color);
+    }
+    
+    .status-good {
+        background-color: rgba(56, 178, 172, 0.1);
+        color: var(--success-color);
+    }
+    
+    .item-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+    
+    .empty-inventory {
         text-align: center;
         padding: 3rem 1rem;
     }
     
-    .no-recipes-icon {
+    .empty-inventory-icon {
         font-size: 3rem;
         margin-bottom: 1rem;
         color: var(--text-muted);
         opacity: 0.5;
     }
     
-    .api-info {
-        background-color: rgba(74, 111, 165, 0.05);
-        padding: 1rem;
+    .search-filter-bar {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .category-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .category-btn {
+        padding: 0.5rem 1rem;
+        background-color: var(--bg-input);
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
-        margin-top: 1.5rem;
         color: var(--text-secondary);
-        font-size: 0.9rem;
-        text-align: center;
-        border-left: 4px solid var(--primary-color);
+        cursor: pointer;
+        transition: all var(--transition-fast);
     }
     
-    .ingredients-used {
-        background-color: rgba(56, 178, 172, 0.1);
-        color: var(--text-primary);
-        padding: 1rem;
-        border-radius: var(--radius-md);
-        margin-bottom: 1.5rem;
-        border-left: 4px solid var(--success-color);
-    }
-    
-    .error-message {
-        background-color: rgba(229, 62, 62, 0.1);
-        color: var(--danger-color);
-        padding: 1.5rem;
-        border-radius: var(--radius-md);
-        margin-bottom: 1.5rem;
-        text-align: center;
-        border-left: 4px solid var(--danger-color);
-    }
-    
-    .tag {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        background-color: rgba(74, 111, 165, 0.1);
+    .category-btn:hover {
+        border-color: var(--primary-color);
         color: var(--primary-color);
-        border-radius: 50px;
-        font-size: 0.8rem;
-        margin-right: 0.5rem;
-        margin-bottom: 0.5rem;
     }
     
-    .tags-container {
-        margin-top: 1rem;
+    .category-btn.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
     }
     
-    /* Loading animation - ONLY for recipes page */
-    .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(var(--bg-primary-rgb, 248, 249, 250), 0.97);
-        display: none; /* Hidden by default */
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        backdrop-filter: blur(10px);
+    .stats-bar {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background-color: var(--bg-card);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
     }
     
-    .spinner {
-        width: 60px;
-        height: 60px;
-        border: 6px solid rgba(74, 111, 165, 0.1);
-        border-top: 6px solid var(--primary-color);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 1.5rem;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    .loading-text {
-        font-size: 1.1rem;
-        color: var(--text-primary);
+    .stat-item {
         text-align: center;
-        max-width: 400px;
-        margin: 0 auto;
+        flex: 1;
     }
     
-    .loading-subtext {
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
         font-size: 0.9rem;
         color: var(--text-muted);
-        margin-top: 0.5rem;
     }
     
-    .cached-badge {
-        background-color: rgba(56, 178, 172, 0.1);
-        color: var(--success-color);
-        padding: 0.25rem 0.75rem;
-        border-radius: 50px;
-        font-size: 0.8rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        margin-left: 0.5rem;
+    .no-items-message {
+        text-align: center;
+        padding: 2rem;
+        background-color: var(--bg-card);
+        border-radius: var(--radius-lg);
+        border: 2px dashed var(--border-color);
     }
+    
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -0.75rem;
+    }
+    
+    .col {
+        flex: 1;
+        padding: 0 0.75rem;
+        min-width: 200px;
+    }
+    
+    .col-auto {
+        flex: 0 0 auto;
+        width: auto;
+        padding: 0 0.75rem;
+    }
+    
+    .w-100 {
+        width: 100%;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .text-center {
+        text-align: center;
+    }
+    
+    .text-right {
+        text-align: right;
+    }
+    
+    .align-items-center {
+        align-items: center;
+    }
+    
+    .mb-0 { margin-bottom: 0; }
+    .mb-1 { margin-bottom: 0.25rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-3 { margin-bottom: 1rem; }
+    .mb-4 { margin-bottom: 1.5rem; }
+    .mt-1 { margin-top: 0.25rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mt-3 { margin-top: 1rem; }
+    .mt-4 { margin-top: 1.5rem; }
+    .p-1 { padding: 0.25rem; }
+    .p-2 { padding: 0.5rem; }
+    .p-3 { padding: 1rem; }
+    .p-4 { padding: 1.5rem; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Loading overlay (ONLY for recipes page) -->
-<div id="recipeLoadingOverlay" class="loading-overlay">
-    <div class="spinner"></div>
-    <div class="loading-text" id="loadingText">Finding delicious recipes for you...</div>
-    <div class="loading-subtext" id="loadingSubtext">Searching TheMealDB database • This may take a few seconds</div>
-</div>
-
 <!-- Page Header -->
-<div class="card mb-4" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white;">
+<div class="card mb-4 welcome-banner">
     <div class="card-body">
         <div class="row align-items-center">
             <div class="col">
                 <h1 class="mb-2">
-                    <i class="fas fa-utensils"></i> Recipe Suggestions
-                    {% if recipe_data.cached %}
-                    <span class="cached-badge">
-                        <i class="fas fa-bolt"></i> Cached
-                    </span>
-                    {% endif %}
+                    <i class="fas fa-boxes"></i> My Inventory
                 </h1>
-                <p class="mb-0">Get cooking ideas based on what you already have</p>
+                <p class="mb-0">Manage your food items and track expiry dates</p>
             </div>
             <div class="col-auto">
-                <a href="{% url 'inventory_list' %}" class="btn btn-outline" style="color: white; border-color: white;">
-                    <i class="fas fa-boxes"></i> Manage Inventory
+                <a href="{% url 'add_item' %}" class="btn btn-secondary">
+                    <i class="fas fa-plus"></i> Add New Item
                 </a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Stats Card -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row text-center">
-            <div class="col">
-                <div class="display-4" style="color: var(--primary-color);">{{ total_items }}</div>
-                <small class="text-muted">Items in Inventory</small>
-            </div>
-            <div class="col">
-                <div class="display-4" style="color: var(--secondary-color);">{{ recipe_data.recipes|length }}</div>
-                <small class="text-muted">Recipe Suggestions</small>
-            </div>
-            <div class="col">
-                <div class="display-4" style="color: var(--accent-color);">{{ recipe_data.api_used }}</div>
-                <small class="text-muted">Recipe Source</small>
-            </div>
-            <div class="col">
-                <div class="display-4" style="color: var(--info-color);">
-                    {% if recipe_data.cached %}⚡{% else %}🔄{% endif %}
-                </div>
-                <small class="text-muted">
-                    {% if recipe_data.cached %}Cached{% else %}Live{% endif %}
-                </small>
-            </div>
-        </div>
-        
-        {% if recipe_data.ingredients_searched %}
-        <div class="ingredients-used mt-3">
-            <strong><i class="fas fa-search"></i> Searching recipes using:</strong> 
-            {{ recipe_data.ingredients_searched|join:", " }}
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Error Message -->
-{% if recipe_data.error %}
-<div class="error-message">
-    <h3><i class="fas fa-exclamation-triangle"></i> Unable to fetch recipes</h3>
-    <p>{{ recipe_data.error }}</p>
-    <p class="mt-2">Try adding more food items to your inventory!</p>
-    <a href="{% url 'add_item' %}" class="btn btn-primary mt-2">
-        <i class="fas fa-plus"></i> Add Food Items
+<!-- Search and Filter Bar -->
+<div class="search-filter-bar">
+    <form method="GET" action="{% url 'inventory_list' %}" class="d-flex" style="flex: 1;">
+        <input type="text" 
+               name="search" 
+               class="form-control" 
+               placeholder="Search items by name..." 
+               value="{{ search_query|default:'' }}"
+               style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+        <button type="submit" class="btn btn-primary" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+            <i class="fas fa-search"></i> Search
+        </button>
+    </form>
+    
+    <a href="{% url 'inventory_list' %}" class="btn btn-outline">
+        <i class="fas fa-redo"></i> Reset Filters
     </a>
 </div>
-{% endif %}
 
-<!-- Recipe Cards -->
-{% if recipe_data.recipes %}
-<div class="recipes-grid mb-4" id="recipesGrid">
-    {% for recipe in recipe_data.recipes %}
-    <div class="recipe-card" data-recipe-id="{{ recipe.id }}">
-        <!-- Lazy loaded image -->
-        <img src="{{ recipe.image|default:'' }}" 
-             alt="{{ recipe.title }}" 
-             class="recipe-image"
-             loading="lazy"
-             onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjNGE2ZmE1Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiPkdyb2NpZnk8L3RleHQ+PC9zdmc+'">
+<!-- Category Filter -->
+<div class="category-filter">
+    <a href="{% url 'inventory_list' %}" 
+       class="category-btn {% if not selected_category %}active{% endif %}">
+        All Categories
+    </a>
+    {% for value, label in categories %}
+    <a href="{% url 'inventory_list' %}?category={{ value }}" 
+       class="category-btn {% if selected_category == value %}active{% endif %}">
+        {{ label }}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Inventory Stats -->
+<div class="stats-bar">
+    <div class="stat-item">
+        <div class="stat-value">{{ total_count }}</div>
+        <div class="stat-label">Total Items</div>
+    </div>
+    
+    <div class="stat-item">
+        <div class="stat-value" style="color: var(--warning-color);">{{ expiring_soon_count }}</div>
+        <div class="stat-label">Expiring Soon</div>
+    </div>
+    
+    <div class="stat-item">
+        <div class="stat-value" style="color: var(--danger-color);">{{ expired_count }}</div>
+        <div class="stat-label">Expired</div>
+    </div>
+</div>
+
+<!-- Inventory Items -->
+{% if items %}
+<div class="inventory-grid mb-4">
+    {% for item in items %}
+    <div class="inventory-card {% if item.get_expiry_status == 'expired' %}expired{% elif item.get_expiry_status in 'expires-today,expiring-soon' %}expiring-soon{% else %}good{% endif %}">
+        <div class="inventory-header">
+            <h3 class="item-name">{{ item.name }}</h3>
+            <span class="badge" style="background-color: {{ item.get_expiry_color }}20; color: {{ item.get_expiry_color }};">
+                {{ item.get_category_display }}
+            </span>
+        </div>
         
-        <div class="recipe-content">
-            <h2 class="recipe-title">{{ recipe.title }}</h2>
-            
-            <div class="recipe-meta">
+        <div class="inventory-content">
+            <div class="item-meta">
+                <div class="meta-item">
+                    <i class="fas fa-balance-scale"></i>
+                    <span>{{ item.quantity }} {{ item.unit }}</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>{{ item.expiry_date|date:"M d, Y"|default:"No date" }}</span>
+                </div>
                 <div class="meta-item">
                     <i class="fas fa-clock"></i>
-                    <span>{{ recipe.cooking_time }} min</span>
-                </div>
-                <div class="meta-item">
-                    <i class="fas fa-users"></i>
-                    <span>{{ recipe.servings }} servings</span>
-                </div>
-                <div class="meta-item">
-                    <i class="fas fa-list"></i>
-                    <span>{{ recipe.ingredients_count }} ingredients</span>
+                    <span>Added {{ item.added_date|date:"M d" }}</span>
                 </div>
             </div>
             
-            <div class="recipe-description">
-                {{ recipe.short_instructions }}
+            <div class="expiry-status {% if item.get_expiry_status == 'expired' %}status-expired{% elif item.get_expiry_status in 'expires-today,expiring-soon' %}status-expiring{% else %}status-good{% endif %}">
+                <span>{{ item.get_expiry_display }}</span>
             </div>
             
-            {% if recipe.ingredients %}
-            <div class="ingredients-grid">
-                {% for ingredient in recipe.ingredients|slice:":4" %}
-                <div class="ingredient-item">
-                    <i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 5px;"></i>
-                    {{ ingredient|truncatechars:20 }}
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            
-            {% if recipe.tags %}
-            <div class="tags-container">
-                {% for tag in recipe.tags|slice:":3" %}
-                <span class="tag">{{ tag }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
-            
-            <div class="recipe-actions">
-                {% if recipe.youtube %}
-                <a href="{{ recipe.youtube }}" target="_blank" class="btn btn-danger btn-sm">
-                    <i class="fab fa-youtube"></i> Watch
+            <div class="item-actions">
+                <a href="{% url 'edit_item' item.id %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-edit"></i> Edit
                 </a>
-                {% endif %}
-                
-                {% if recipe.source %}
-                <a href="{{ recipe.source }}" target="_blank" class="btn btn-primary btn-sm">
-                    <i class="fas fa-external-link-alt"></i> Full Recipe
+                <a href="{% url 'delete_item' item.id %}" class="btn btn-danger btn-sm">
+                    <i class="fas fa-trash"></i> Delete
                 </a>
-                {% else %}
-                <a href="{% url 'recipe_detail' recipe.id %}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-info-circle"></i> View Details
-                </a>
+                {% if item.get_expiry_status == 'expired' %}
+                <span class="text-danger small" style="margin-left: auto; display: flex; align-items: center;">
+                    <i class="fas fa-exclamation-triangle"></i> Expired
+                </span>
                 {% endif %}
             </div>
         </div>
@@ -364,185 +359,121 @@
     {% endfor %}
 </div>
 
-<div class="api-info">
-    <strong><i class="fas fa-database"></i> Powered by TheMealDB API</strong> - Free recipe database with real cooking instructions
-    {% if recipe_data.cached %}
-    <div class="mt-1">
-        <i class="fas fa-info-circle"></i> Showing cached results for faster loading
+<!-- Summary -->
+<div class="card mt-4">
+    <div class="card-body text-center">
+        <p class="mb-0">
+            Showing {{ total_count }} item{{ total_count|pluralize }} in your inventory
+            {% if selected_category %}
+            in <strong>{{ selected_category }}</strong> category
+            {% endif %}
+            {% if search_query %}
+            matching "<strong>{{ search_query }}</strong>"
+            {% endif %}
+        </p>
     </div>
-    {% endif %}
 </div>
 
 {% else %}
-<!-- No Recipes -->
-<div class="no-recipes">
-    <div class="no-recipes-icon">
-        <i class="fas fa-utensils"></i>
+<!-- Empty Inventory State -->
+<div class="no-items-message">
+    <div class="empty-inventory-icon">
+        <i class="fas fa-inbox"></i>
     </div>
-    <h3 class="mb-2">No recipe suggestions yet</h3>
-    <p class="text-muted mb-3">Add more food items to your inventory to get personalized recipe suggestions!</p>
-    <a href="{% url 'add_item' %}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Add Food Items
+    <h3 class="mb-2">Your inventory is empty</h3>
+    <p class="text-muted mb-3">Start adding food items to track expiry dates and get recipe suggestions!</p>
+    
+    {% if selected_category or search_query %}
+    <p class="mb-3">
+        No items found 
+        {% if selected_category %}in category <strong>{{ selected_category }}</strong>{% endif %}
+        {% if search_query %}matching "<strong>{{ search_query }}</strong>"{% endif %}
+    </p>
+    <a href="{% url 'inventory_list' %}" class="btn btn-outline">
+        <i class="fas fa-redo"></i> Clear Filters
     </a>
+    {% endif %}
+    
+    <div class="mt-3">
+        <a href="{% url 'add_item' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Your First Item
+        </a>
+    </div>
 </div>
 {% endif %}
+
+<!-- Quick Tips -->
+<div class="card mt-4">
+    <div class="card-body">
+        <h5 class="mb-3">
+            <i class="fas fa-lightbulb text-primary"></i> Inventory Management Tips
+        </h5>
+        
+        <div class="row">
+            <div class="col-6 mb-3">
+                <div class="d-flex align-items-start">
+                    <div style="color: var(--success-color); margin-right: 10px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <strong>Regular Updates</strong>
+                        <p class="small mb-0 text-muted">Update quantities as you use items</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6 mb-3">
+                <div class="d-flex align-items-start">
+                    <div style="color: var(--success-color); margin-right: 10px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <strong>Check Expiry Weekly</strong>
+                        <p class="small mb-0 text-muted">Review items at least once a week</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6 mb-3">
+                <div class="d-flex align-items-start">
+                    <div style="color: var(--success-color); margin-right: 10px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <strong>Use Categories</strong>
+                        <p class="small mb-0 text-muted">Categorize items for easy filtering</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6 mb-3">
+                <div class="d-flex align-items-start">
+                    <div style="color: var(--success-color); margin-right: 10px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <strong>Be Specific</strong>
+                        <p class="small mb-0 text-muted">Use specific names like "Greek Yogurt"</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Show loading when page loads if recipes aren't cached - ONLY on recipes page
     document.addEventListener('DOMContentLoaded', function() {
-        const recipeData = {{ recipe_data|safe|default:'{}' }};
-        const currentPath = window.location.pathname;
-        
-        // Only run this code if we're on the recipes page
-        if (currentPath.includes('/recipes') && !currentPath.includes('/recipes/')) {
-            
-            // Check if data is not cached and we need to load
-            if (!recipeData.cached && (!recipeData.recipes || recipeData.recipes.length === 0)) {
-                showLoading();
-            }
-            
-            // Also show loading if API call takes too long
-            setTimeout(function() {
-                const recipeCards = document.querySelectorAll('.recipe-card');
-                if (recipeCards.length === 0 && !recipeData.error) {
-                    showLoading();
+        // Add confirmation for delete actions
+        const deleteButtons = document.querySelectorAll('a[href*="delete"]');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+                    e.preventDefault();
                 }
-            }, 800);
-            
-            function showLoading() {
-                const overlay = document.getElementById('recipeLoadingOverlay');
-                if (overlay) {
-                    overlay.style.display = 'flex';
-                    
-                    // Auto-hide after max 8 seconds (API timeout)
-                    setTimeout(function() {
-                        overlay.style.display = 'none';
-                    }, 8000);
-                }
-            }
-            
-            // Hide loading when recipes appear
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.addedNodes.length > 0) {
-                        const recipeGrid = document.getElementById('recipesGrid');
-                        if (recipeGrid && recipeGrid.children.length > 0) {
-                            const overlay = document.getElementById('recipeLoadingOverlay');
-                            if (overlay) {
-                                overlay.style.display = 'none';
-                            }
-                            observer.disconnect();
-                        }
-                    }
-                });
             });
-            
-            const recipeGrid = document.getElementById('recipesGrid');
-            if (recipeGrid) {
-                observer.observe(recipeGrid, { childList: true, subtree: true });
-            }
-            
-            // Update loading text based on progress
-            let loadingPhrases = [
-                "Finding delicious recipes for you...",
-                "Checking TheMealDB database...",
-                "Matching with your ingredients...",
-                "Analyzing cooking methods...",
-                "Preparing your culinary journey...",
-                "Almost ready...",
-                "Finalizing recipe suggestions..."
-            ];
-            
-            let loadingSubphrases = [
-                "Searching thousands of recipes",
-                "Filtering by your available ingredients",
-                "Optimizing cooking time and difficulty",
-                "Checking recipe ratings and reviews",
-                "Preparing step-by-step instructions",
-                "Loading images and cooking videos",
-                "Almost done!"
-            ];
-            
-            let phraseIndex = 0;
-            let subphraseIndex = 0;
-            
-            const loadingInterval = setInterval(function() {
-                const overlay = document.getElementById('recipeLoadingOverlay');
-                if (overlay && overlay.style.display === 'flex') {
-                    document.getElementById('loadingText').textContent = loadingPhrases[phraseIndex];
-                    document.getElementById('loadingSubtext').textContent = loadingSubphrases[subphraseIndex];
-                    
-                    phraseIndex = (phraseIndex + 1) % loadingPhrases.length;
-                    subphraseIndex = (subphraseIndex + 1) % loadingSubphrases.length;
-                } else {
-                    clearInterval(loadingInterval);
-                }
-            }, 2000);
-            
-            // Cache status indicator - ONLY on recipes page
-            const cacheStatus = document.createElement('div');
-            cacheStatus.className = 'cache-status';
-            cacheStatus.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:5px 10px;border-radius:5px;font-size:12px;z-index:1000;';
-            
-            {% if recipe_data.cached %}
-            cacheStatus.textContent = '⚡ Cached';
-            cacheStatus.style.backgroundColor = 'rgba(56, 178, 172, 0.8)';
-            {% else %}
-            cacheStatus.textContent = '🔄 Live API';
-            cacheStatus.style.backgroundColor = 'rgba(237, 137, 54, 0.8)';
-            {% endif %}
-            
-            document.body.appendChild(cacheStatus);
-            
-            // Remove cache status after 3 seconds
-            setTimeout(function() {
-                cacheStatus.style.opacity = '0';
-                setTimeout(function() {
-                    if (cacheStatus.parentNode) {
-                        cacheStatus.parentNode.removeChild(cacheStatus);
-                    }
-                }, 500);
-            }, 3000);
-        }
-    });
-    
-    // Lazy load images with Intersection Observer - works on all pages
-    document.addEventListener('DOMContentLoaded', function() {
-        if ('IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        if (img.dataset.src) {
-                            img.src = img.dataset.src;
-                        }
-                        img.classList.remove('loading');
-                        observer.unobserve(img);
-                    }
-                });
-            });
-            
-            document.querySelectorAll('.recipe-image').forEach(img => {
-                if (!img.complete) {
-                    img.classList.add('loading');
-                }
-                imageObserver.observe(img);
-            });
-        }
-    });
-    
-    // Add click tracking for recipe cards (optional analytics)
-    document.addEventListener('click', function(e) {
-        const recipeCard = e.target.closest('.recipe-card');
-        if (recipeCard) {
-            const recipeId = recipeCard.dataset.recipeId;
-            if (recipeId) {
-                console.log('Recipe clicked:', recipeId);
-                // You could add analytics here
-            }
-        }
+        });
     });
 </script>
 {% endblock %}

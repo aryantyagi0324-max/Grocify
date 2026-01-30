@@ -369,8 +369,12 @@ def dashboard(request):
 
 @login_required
 def inventory_list(request):
-    """List all inventory items for the logged-in user"""
+    """List all inventory items for the logged-in user - FIXED VERSION"""
     user_items = FoodItem.objects.filter(user=request.user).order_by('expiry_date')
+    
+    # Get today's date for calculations
+    from datetime import date
+    today = date.today()
     
     # Get filter from request
     category_filter = request.GET.get('category', '')
@@ -382,12 +386,27 @@ def inventory_list(request):
     if search_query:
         user_items = user_items.filter(name__icontains=search_query)
     
+    # Calculate stats for the inventory page
+    expired_count = 0
+    expiring_soon_count = 0
+    
+    for item in user_items:
+        if item.expiry_date:
+            days_until = (item.expiry_date - today).days
+            if days_until < 0:
+                expired_count += 1
+            elif 0 <= days_until <= 3:
+                expiring_soon_count += 1
+    
     context = {
         'page_title': 'My Inventory',
         'items': user_items,
         'categories': FoodItem.CATEGORY_CHOICES,
         'selected_category': category_filter,
         'search_query': search_query,
+        'expired_count': expired_count,
+        'expiring_soon_count': expiring_soon_count,
+        'total_count': user_items.count(),
     }
     return render(request, 'inventory/list.html', context)
 

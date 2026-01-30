@@ -4,6 +4,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 class FoodItem(models.Model):
     # Category choices (like dropdown options)
@@ -119,3 +121,14 @@ class FoodItem(models.Model):
         else:
             self.is_expired = False
         self.save()
+
+
+# ===== SIGNALS =====
+@receiver(pre_save, sender=FoodItem)
+def update_expiry_status_signal(sender, instance, **kwargs):
+    """
+    Automatically update is_expired field before saving.
+    This ensures the is_expired field is always current.
+    """
+    if instance.expiry_date:
+        instance.is_expired = instance.expiry_date < timezone.now().date()
