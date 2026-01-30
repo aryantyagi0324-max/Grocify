@@ -501,15 +501,33 @@ def recipes(request):
     }
     return render(request, 'recipes/list.html', context)
 
+# Update just the recipes function in views.py:
+
+@login_required
+def recipes(request):
+    """Recipe suggestions page WITH performance optimizations"""
+    user_items = FoodItem.objects.filter(user=request.user)
+    
+    # Get recipe suggestions (will use cache if available)
+    recipe_data = get_recipe_suggestions(user_items)
+    
+    context = {
+        'page_title': 'Smart Recipe Suggestions',
+        'recipe_data': recipe_data,
+        'user_items': user_items,
+        'total_items': user_items.count(),
+    }
+    return render(request, 'recipes/list.html', context)
+
 @login_required
 def recipe_detail(request, recipe_id):
-    """Detailed recipe view with actual data from TheMealDB"""
+    """Detailed recipe view"""
     # Check cache first
     cache_key = f"recipe_detail_full_{recipe_id}"
     recipe_data = cache.get(cache_key)
     
     if not recipe_data:
-        # Fetch recipe details from TheMealDB API
+        # Fetch recipe details
         try:
             url = "https://www.themealdb.com/api/json/v1/1/lookup.php"
             params = {'i': recipe_id}
@@ -525,7 +543,7 @@ def recipe_detail(request, recipe_id):
                     
                     # Extract ingredients and measures
                     ingredients = []
-                    for i in range(1, 21):  # TheMealDB has up to 20 ingredients
+                    for i in range(1, 21):
                         ingredient = meal.get(f'strIngredient{i}', '').strip()
                         measure = meal.get(f'strMeasure{i}', '').strip()
                         
@@ -551,7 +569,7 @@ def recipe_detail(request, recipe_id):
                     has_count = sum(1 for ing in ingredients if ing.get('has_it'))
                     total_count = len(ingredients)
                     
-                    # NEW: Create proper cooking instructions
+                    # Create cooking instructions
                     instructions = meal.get('strInstructions', '')
                     
                     # Try to parse existing instructions
@@ -589,10 +607,10 @@ def recipe_detail(request, recipe_id):
                 else:
                     recipe_data = {'error': 'Recipe not found'}
             else:
-                recipe_data = {'error': 'API error'}
+                recipe_data = {'error': 'Error fetching recipe'}
                 
         except Exception as e:
-            recipe_data = {'error': f'Error fetching recipe: {str(e)}'}
+            recipe_data = {'error': f'Error: {str(e)}'}
     else:
         recipe_data['cached'] = True
     

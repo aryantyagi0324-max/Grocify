@@ -7,7 +7,7 @@ import concurrent.futures
 
 def get_recipes_by_ingredients(ingredients, number=5):
     """
-    Get recipes based on available ingredients using TheMealDB API
+    Get recipes based on available ingredients
     WITH ENHANCED CACHING for performance
     """
     if not ingredients:
@@ -27,9 +27,9 @@ def get_recipes_by_ingredients(ingredients, number=5):
         cached['cached'] = True
         return cached
     
-    print(f"🔄 Fetching fresh recipes from API for: {ingredients[:3]}")
+    print(f"🔄 Fetching fresh recipes for: {ingredients[:3]}")
     
-    # Try multiple API strategies
+    # Try multiple strategies
     results = []
     
     # Strategy 1: Search by main ingredient (with parallel processing)
@@ -87,64 +87,60 @@ def get_recipes_by_ingredients(ingredients, number=5):
         'success': True,
         'recipes': formatted_recipes,
         'total_recipes': len(formatted_recipes),
-        'api_used': 'TheMealDB',
         'ingredients_searched': ingredients[:3],
         'cached': False,
         'load_time': 'fresh'
     }
     
-    # Cache for 4 hours (reduced for freshness)
-    cache.set(cache_key, response, 14400)  # 4 hours
+    # Cache for 4 hours
+    cache.set(cache_key, response, 14400)
     
     return response
 
 def _search_by_ingredient(ingredient):
-    """Search recipes by ingredient using TheMealDB - OPTIMIZED"""
-    cache_key = f"mealdb_ingredient_{ingredient.lower().replace(' ', '_')}"
+    """Search recipes by ingredient - OPTIMIZED"""
+    cache_key = f"ingredient_{ingredient.lower().replace(' ', '_')}"
     cached = cache.get(cache_key)
     
     if cached:
         return cached
     
     try:
-        # TheMealDB API - filter by ingredient
+        # Recipe search endpoint
         url = "https://www.themealdb.com/api/json/v1/1/filter.php"
         params = {'i': ingredient.lower()}
         
-        response = requests.get(url, params=params, timeout=6)  # Reduced timeout
+        response = requests.get(url, params=params, timeout=6)
         
         if response.status_code == 200:
             data = response.json()
             meals = data.get('meals', [])
             
             if not meals:
-                cache.set(cache_key, [], 3600)  # Cache empty results for 1 hour
+                cache.set(cache_key, [], 3600)
                 return []
             
-            # Get basic details for first 5 meals (not full details)
+            # Get basic details for first 5 meals
             basic_meals = []
-            for meal in meals[:5]:  # Limit to 5
+            for meal in meals[:5]:
                 meal_id = meal.get('idMeal')
                 if meal_id:
-                    # Get basic details only
                     basic_info = _get_basic_meal_info(meal_id)
                     if basic_info:
                         basic_meals.append(basic_info)
             
-            # Cache for 8 hours
             cache.set(cache_key, basic_meals, 28800)
             return basic_meals
             
     except Exception as e:
         print(f"Error searching by ingredient {ingredient}: {e}")
-        # Cache error for 15 minutes
         cache.set(cache_key, [], 900)
     
     return []
 
 def _get_basic_meal_info(meal_id):
     """Get basic meal information (optimized for speed)"""
-    cache_key = f"mealdb_basic_{meal_id}"
+    cache_key = f"basic_{meal_id}"
     cached = cache.get(cache_key)
     
     if cached:
@@ -185,7 +181,6 @@ def _get_basic_meal_info(meal_id):
                     'instructions': (meal.get('strInstructions', '')[:100] + '...') if meal.get('strInstructions') else '',
                 }
                 
-                # Cache for 12 hours
                 cache.set(cache_key, basic_meal, 43200)
                 return basic_meal
                 
@@ -196,7 +191,7 @@ def _get_basic_meal_info(meal_id):
 
 def _get_meal_details(meal_id):
     """Get detailed meal information (only for recipe detail page)"""
-    cache_key = f"mealdb_details_{meal_id}"
+    cache_key = f"details_{meal_id}"
     cached = cache.get(cache_key)
     
     if cached:
@@ -217,7 +212,7 @@ def _get_meal_details(meal_id):
                 
                 # Extract ingredients and measures
                 ingredients = []
-                for i in range(1, 21):  # TheMealDB has up to 20 ingredients
+                for i in range(1, 21):
                     ingredient = meal.get(f'strIngredient{i}', '').strip()
                     measure = meal.get(f'strMeasure{i}', '').strip()
                     
@@ -241,7 +236,6 @@ def _get_meal_details(meal_id):
                     'tags': meal.get('strTags', '').split(',') if meal.get('strTags') else [],
                 }
                 
-                # Cache for 24 hours
                 cache.set(cache_key, formatted_meal, 86400)
                 return formatted_meal
                 
@@ -252,7 +246,7 @@ def _get_meal_details(meal_id):
 
 def _get_random_recipes(number=3):
     """Get random recipes as fallback - OPTIMIZED"""
-    cache_key = f"mealdb_random_{number}"
+    cache_key = f"random_{number}"
     cached = cache.get(cache_key)
     
     if cached:
@@ -261,8 +255,7 @@ def _get_random_recipes(number=3):
     try:
         random_meals = []
         
-        # Try to get multiple random meals in one go if API allows
-        for _ in range(min(number, 3)):  # Limit to 3 API calls
+        for _ in range(min(number, 3)):
             url = "https://www.themealdb.com/api/json/v1/1/random.php"
             response = requests.get(url, timeout=5)
             
@@ -281,7 +274,6 @@ def _get_random_recipes(number=3):
                     }
                     random_meals.append(formatted_meal)
         
-        # Cache for 2 hours
         cache.set(cache_key, random_meals, 7200)
         return random_meals
         
@@ -292,10 +284,10 @@ def _get_random_recipes(number=3):
 
 def _format_recipe(meal):
     """Format meal data for template"""
-    # Calculate approximate cooking time based on instructions length
+    # Calculate approximate cooking time
     instructions = meal.get('instructions', '')
     word_count = len(instructions.split())
-    cooking_time = max(15, min(120, word_count // 10))  # Rough estimate
+    cooking_time = max(15, min(120, word_count // 10))
     
     # Create ingredient list for display
     ingredient_list = []
@@ -320,9 +312,9 @@ def _format_recipe(meal):
         'ingredients': ingredient_list,
         'ingredients_count': len(ingredient_list),
         'cooking_time': cooking_time,
-        'servings': 4,  # Default assumption
+        'servings': 4,
         'has_all_ingredients': has_all_ingredients,
-        'missing_ingredients': [],  # We don't have this info from TheMealDB
+        'missing_ingredients': [],
         'tags': meal.get('tags', [])
     }
 
@@ -333,7 +325,7 @@ def get_recipe_suggestions(user_items):
     # Extract ingredient names
     ingredients = [item.name.lower() for item in user_items if item.name]
     
-    # Common ingredient mappings (to improve API matching)
+    # Common ingredient mappings
     ingredient_mappings = {
         'milk': 'milk',
         'bread': 'bread',
@@ -360,9 +352,7 @@ def get_recipe_suggestions(user_items):
     # Map ingredients to common names
     mapped_ingredients = []
     for ingredient in ingredients:
-        # Try to find a mapping
         mapped = ingredient_mappings.get(ingredient, ingredient)
-        # Remove plural 's' for better matching
         if mapped.endswith('s') and len(mapped) > 3:
             mapped = mapped[:-1]
         mapped_ingredients.append(mapped)
@@ -370,7 +360,7 @@ def get_recipe_suggestions(user_items):
     # Remove duplicates
     unique_ingredients = list(set(mapped_ingredients))
     
-    # Limit to 4 ingredients to avoid too many API calls
+    # Limit to 4 ingredients
     search_ingredients = unique_ingredients[:4]
     
     if not search_ingredients:
@@ -380,4 +370,5 @@ def get_recipe_suggestions(user_items):
             'cached': True
         }
     
-    return get_recipes_by_ingredients(search_ingredients, number=6)
+    recipe_data = get_recipes_by_ingredients(search_ingredients, number=6)
+    return recipe_data

@@ -153,7 +153,7 @@
         <div class="row align-items-center">
             <div class="col">
                 <h1 class="mb-2">
-                    <i class="fas fa-utensils"></i> Recipe Suggestions
+                    <i class="fas fa-utensils"></i> Smart Recipe Suggestions
                 </h1>
                 <p class="mb-0">Get cooking ideas based on what you already have</p>
             </div>
@@ -179,8 +179,8 @@
                 <small class="text-muted">Recipe Suggestions</small>
             </div>
             <div class="col">
-                <div class="display-4" style="color: var(--accent-color);">{{ recipe_data.api_used }}</div>
-                <small class="text-muted">Recipe Source</small>
+                <div class="display-4" style="color: var(--accent-color);">{{ recipe_data.recipes|length }}</div>
+                <small class="text-muted">Recipes Found</small>
             </div>
         </div>
         
@@ -260,19 +260,13 @@
             {% endif %}
             
             <div class="recipe-actions">
+                <a href="{% url 'recipe_detail' recipe.id %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-info-circle"></i> View Recipe
+                </a>
+                
                 {% if recipe.youtube %}
                 <a href="{{ recipe.youtube }}" target="_blank" class="btn btn-danger btn-sm">
                     <i class="fab fa-youtube"></i> Watch
-                </a>
-                {% endif %}
-                
-                {% if recipe.source %}
-                <a href="{{ recipe.source }}" target="_blank" class="btn btn-primary btn-sm">
-                    <i class="fas fa-external-link-alt"></i> Full Recipe
-                </a>
-                {% else %}
-                <a href="{% url 'recipe_detail' recipe.id %}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-info-circle"></i> View Details
                 </a>
                 {% endif %}
             </div>
@@ -282,7 +276,42 @@
 </div>
 
 <div class="api-info">
-    <strong><i class="fas fa-database"></i> Powered by TheMealDB API</strong> - Free recipe database with real cooking instructions
+    <h4><i class="fas fa-brain"></i> How It Works</h4>
+    <p>Our smart algorithm analyzes your inventory, expiry dates, and preferences to suggest perfect recipes that minimize waste and maximize taste.</p>
+    <div class="row mt-3">
+        <div class="col">
+            <div class="text-center">
+                <div style="font-size: 1.5rem; color: var(--success-color);">
+                    <i class="fas fa-box"></i>
+                </div>
+                <small>Inventory Scan</small>
+            </div>
+        </div>
+        <div class="col">
+            <div class="text-center">
+                <div style="font-size: 1.5rem; color: var(--warning-color);">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <small>Expiry Analysis</small>
+            </div>
+        </div>
+        <div class="col">
+            <div class="text-center">
+                <div style="font-size: 1.5rem; color: var(--primary-color);">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <small>Recipe Matching</small>
+            </div>
+        </div>
+        <div class="col">
+            <div class="text-center">
+                <div style="font-size: 1.5rem; color: var(--accent-color);">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <small>Smart Suggestions</small>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% else %}

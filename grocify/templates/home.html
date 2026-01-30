@@ -13,7 +13,7 @@
             Your Smart Kitchen Inventory & Recipe Assistant
         </p>
         <p style="max-width: 800px; margin: 0 auto 2rem; opacity: 0.95;">
-            Track food items, reduce waste, get recipe suggestions, and save money – all in one place.
+            Track food items, reduce waste, get smart recipe suggestions, and save money – all in one place.
         </p>
         
         {% if not user.is_authenticated %}
@@ -71,10 +71,10 @@
             <div class="card h-100 text-center">
                 <div class="card-body">
                     <div class="mb-2" style="font-size: 2.5rem; color: var(--accent-color);">
-                        <i class="fas fa-utensils"></i>
+                        <i class="fas fa-robot"></i>
                     </div>
-                    <h3 class="card-title">Recipe Suggestions</h3>
-                    <p>Get real recipe suggestions based on what you have. Cook delicious meals without extra shopping.</p>
+                    <h3 class="card-title">Smart Recipe Suggestions</h3>
+                    <p>Get intelligent recipe matches based on what you have. Cook delicious meals without extra shopping.</p>
                 </div>
             </div>
         </div>
@@ -146,7 +146,7 @@
                 <i class="fas fa-plus"></i> Add First Item
             </a>
             <a href="{% url 'recipes' %}" class="btn btn-success">
-                <i class="fas fa-utensils"></i> Find Recipes
+                <i class="fas fa-robot"></i> Try Smart Recipes
             </a>
             <a href="{% url 'about' %}" class="btn btn-outline">
                 <i class="fas fa-info-circle"></i> Learn More
