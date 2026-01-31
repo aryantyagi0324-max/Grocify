@@ -13,6 +13,7 @@ import requests
 from django.core.cache import cache
 import random
 import threading
+from datetime import date
 
 # Helper functions for recipe instructions
 def create_smart_instructions(meal, ingredients):
@@ -487,32 +488,14 @@ def delete_item_ajax(request, item_id):
 
 @login_required
 def recipes(request):
-    """Recipe suggestions page WITH performance optimizations"""
+    """Recipe suggestions page"""
     user_items = FoodItem.objects.filter(user=request.user)
     
-    # Get recipe suggestions (will use cache if available)
+    # Get recipe suggestions from API only
     recipe_data = get_recipe_suggestions(user_items)
     
     context = {
         'page_title': 'Recipe Suggestions',
-        'recipe_data': recipe_data,
-        'user_items': user_items,
-        'total_items': user_items.count(),
-    }
-    return render(request, 'recipes/list.html', context)
-
-# Update just the recipes function in views.py:
-
-@login_required
-def recipes(request):
-    """Recipe suggestions page WITH performance optimizations"""
-    user_items = FoodItem.objects.filter(user=request.user)
-    
-    # Get recipe suggestions (will use cache if available)
-    recipe_data = get_recipe_suggestions(user_items)
-    
-    context = {
-        'page_title': 'Smart Recipe Suggestions',
         'recipe_data': recipe_data,
         'user_items': user_items,
         'total_items': user_items.count(),

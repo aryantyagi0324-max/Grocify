@@ -4,7 +4,6 @@
 
 {% block extra_css %}
 <style>
-    /* Recipe specific styles */
     .recipes-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -110,15 +109,6 @@
         border-left: 4px solid var(--primary-color);
     }
     
-    .ingredients-used {
-        background-color: rgba(56, 178, 172, 0.1);
-        color: var(--text-primary);
-        padding: 1rem;
-        border-radius: var(--radius-md);
-        margin-bottom: 1.5rem;
-        border-left: 4px solid var(--success-color);
-    }
-    
     .error-message {
         background-color: rgba(229, 62, 62, 0.1);
         color: var(--danger-color);
@@ -143,6 +133,46 @@
     .tags-container {
         margin-top: 1rem;
     }
+    
+    /* Larger stat numbers */
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+    
+    .stats-row {
+        display: flex;
+        justify-content: space-around;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        background-color: var(--bg-card);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+    }
+    
+    .stat-item {
+        flex: 1;
+        padding: 0 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .stat-number {
+            font-size: 2rem;
+        }
+        
+        .stats-row {
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -153,7 +183,7 @@
         <div class="row align-items-center">
             <div class="col">
                 <h1 class="mb-2">
-                    <i class="fas fa-utensils"></i> Smart Recipe Suggestions
+                    <i class="fas fa-utensils"></i> Recipe Suggestions
                 </h1>
                 <p class="mb-0">Get cooking ideas based on what you already have</p>
             </div>
@@ -166,30 +196,21 @@
     </div>
 </div>
 
-<!-- Stats Card -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row text-center">
-            <div class="col">
-                <div class="display-4" style="color: var(--primary-color);">{{ total_items }}</div>
-                <small class="text-muted">Items in Inventory</small>
-            </div>
-            <div class="col">
-                <div class="display-4" style="color: var(--secondary-color);">{{ recipe_data.recipes|length }}</div>
-                <small class="text-muted">Recipe Suggestions</small>
-            </div>
-            <div class="col">
-                <div class="display-4" style="color: var(--accent-color);">{{ recipe_data.recipes|length }}</div>
-                <small class="text-muted">Recipes Found</small>
-            </div>
-        </div>
-        
-        {% if recipe_data.ingredients_searched %}
-        <div class="ingredients-used mt-3">
-            <strong><i class="fas fa-search"></i> Searching recipes using:</strong> 
-            {{ recipe_data.ingredients_searched|join:", " }}
-        </div>
-        {% endif %}
+<!-- Stats Row - Moved ABOVE any search bar -->
+<div class="stats-row mb-4">
+    <div class="stat-item">
+        <div class="stat-number" style="color: var(--primary-color);">{{ total_items }}</div>
+        <div class="stat-label">Items in Inventory</div>
+    </div>
+    
+    <div class="stat-item">
+        <div class="stat-number" style="color: var(--secondary-color);">{{ recipe_data.recipes|length }}</div>
+        <div class="stat-label">Recipe Suggestions</div>
+    </div>
+    
+    <div class="stat-item">
+        <div class="stat-number" style="color: var(--accent-color);">{{ recipe_data.recipes|length }}</div>
+        <div class="stat-label">Recipes Found</div>
     </div>
 </div>
 
@@ -277,7 +298,7 @@
 
 <div class="api-info">
     <h4><i class="fas fa-brain"></i> How It Works</h4>
-    <p>Our smart algorithm analyzes your inventory, expiry dates, and preferences to suggest perfect recipes that minimize waste and maximize taste.</p>
+    <p>Our algorithm analyzes your inventory and finds matching recipes from TheMealDB API.</p>
     <div class="row mt-3">
         <div class="col">
             <div class="text-center">
@@ -290,9 +311,9 @@
         <div class="col">
             <div class="text-center">
                 <div style="font-size: 1.5rem; color: var(--warning-color);">
-                    <i class="fas fa-calendar-alt"></i>
+                    <i class="fas fa-search"></i>
                 </div>
-                <small>Expiry Analysis</small>
+                <small>Recipe Search</small>
             </div>
         </div>
         <div class="col">
@@ -308,7 +329,7 @@
                 <div style="font-size: 1.5rem; color: var(--accent-color);">
                     <i class="fas fa-check-circle"></i>
                 </div>
-                <small>Smart Suggestions</small>
+                <small>Suggestions</small>
             </div>
         </div>
     </div>

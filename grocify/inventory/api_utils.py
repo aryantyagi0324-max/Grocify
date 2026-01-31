@@ -4,6 +4,7 @@ import random
 from django.core.cache import cache
 from django.conf import settings
 import concurrent.futures
+from datetime import date
 
 def get_recipes_by_ingredients(ingredients, number=5):
     """
@@ -320,7 +321,7 @@ def _format_recipe(meal):
 
 def get_recipe_suggestions(user_items):
     """
-    Get recipe suggestions based on user's inventory - OPTIMIZED
+    Get recipe suggestions based on user's inventory - SIMPLE VERSION
     """
     # Extract ingredient names
     ingredients = [item.name.lower() for item in user_items if item.name]
