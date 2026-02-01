@@ -126,9 +126,6 @@
     }
     
     .checkmark {
-        color: var(--success-color);
-        font-weight: bold;
-        font-size: 1.2rem;
         width: 30px;
         height: 30px;
         display: flex;
@@ -136,15 +133,22 @@
         justify-content: center;
     }
     
-    .crossmark {
-        color: var(--danger-color);
-        font-weight: bold;
+    .checkmark i {
+        color: var(--success-color);
         font-size: 1.2rem;
+    }
+    
+    .crossmark {
         width: 30px;
         height: 30px;
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+    
+    .crossmark i {
+        color: var(--danger-color);
+        font-size: 1.2rem;
     }
     
     .ingredient-text {
@@ -155,6 +159,17 @@
     .ingredient-measure {
         color: var(--text-muted);
         font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+    
+    .text-success {
+        color: var(--success-color);
+        font-weight: 500;
+    }
+    
+    .text-danger {
+        color: var(--danger-color);
+        font-weight: 500;
     }
     
     .inventory-status {
@@ -299,6 +314,73 @@
     .back-link:hover {
         text-decoration: underline;
     }
+    
+    /* Missing ingredients styles */
+    .missing-ingredients {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 1rem;
+    }
+    
+    .badge-danger {
+        background-color: var(--danger-color);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+    
+    .mr-2 {
+        margin-right: 8px;
+    }
+    
+    .mb-2 {
+        margin-bottom: 8px;
+    }
+    
+    .d-block {
+        display: block;
+    }
+    
+    .mt-1 {
+        margin-top: 4px;
+    }
+    
+    .mt-2 {
+        margin-top: 8px;
+    }
+    
+    .mt-3 {
+        margin-top: 16px;
+    }
+    
+    /* Nutrition info styles */
+    .nutrition-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .nutrition-item {
+        text-align: center;
+        padding: 1rem;
+        background: rgba(74, 111, 165, 0.05);
+        border-radius: var(--radius-md);
+    }
+    
+    .nutrition-value {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin-bottom: 0.25rem;
+    }
+    
+    .nutrition-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
 </style>
 {% endblock %}
 
@@ -326,7 +408,10 @@
             <div class="recipe-header-content">
                 <h1 class="recipe-title">{{ recipe.title }}</h1>
                 <div class="recipe-category">
-                    {{ recipe.category }} • {{ recipe.area }}
+                    {{ recipe.category }} • {{ recipe.area|default:"" }}
+                    {% if recipe.cuisines %}
+                        • {{ recipe.cuisines|join:", " }}
+                    {% endif %}
                 </div>
                 
                 <div class="recipe-meta">
@@ -337,6 +422,10 @@
                     <div class="meta-item">
                         <span class="meta-value">{{ recipe.instruction_steps|length }}</span>
                         <span class="meta-label">Steps</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-value">{{ recipe.readyInMinutes|default:recipe.cooking_time }}</span>
+                        <span class="meta-label">Minutes</span>
                     </div>
                     <div class="meta-item">
                         <span class="meta-value">{{ recipe.has_count }}/{{ recipe.total_count }}</span>
@@ -356,53 +445,198 @@
                     {% for ingredient in recipe.ingredients %}
                     <li class="ingredient-item">
                         {% if ingredient.has_it %}
-                        <div class="checkmark" title="You have this ingredient">✓</div>
-                        {% else %}
-                        <div class="crossmark" title="You don't have this ingredient">✗</div>
-                        {% endif %}
-                        
+                        <div class="checkmark" title="You have this ingredient">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
                         <div class="ingredient-text">
-                            <strong>{{ ingredient.name }}</strong>
-                            {% if ingredient.measure %}
-                            <div class="ingredient-measure">{{ ingredient.measure }}</div>
+                            <strong style="color: var(--success-color);">{{ ingredient.name }}</strong>
+                            {% if ingredient.amount %}
+                            <div class="ingredient-measure">
+                                <span class="text-success">✓ You have this</span> • {{ ingredient.amount }} {{ ingredient.unit|default:"" }}
+                            </div>
+                            {% else %}
+                            <div class="ingredient-measure text-success">
+                                ✓ You have this ingredient
+                            </div>
                             {% endif %}
                         </div>
+                        {% else %}
+                        <div class="crossmark" title="You don't have this ingredient">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="ingredient-text">
+                            <strong>{{ ingredient.name }}</strong>
+                            {% if ingredient.amount %}
+                            <div class="ingredient-measure">
+                                <span class="text-danger">✗ Need to buy</span> • {{ ingredient.amount }} {{ ingredient.unit|default:"" }}
+                            </div>
+                            {% else %}
+                            <div class="ingredient-measure text-danger">
+                                ✗ Need to buy this ingredient
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
                 
-                <!-- Inventory Status -->
+                <!-- Smart Match Analysis -->
                 <div class="inventory-status 
-                    {% if recipe.ingredients_percentage >= 70 %}status-good
-                    {% elif recipe.ingredients_percentage >= 40 %}status-ok
+                    {% if recipe.feasibility == 'high' %}status-good
+                    {% elif recipe.feasibility == 'medium' %}status-ok
                     {% else %}status-poor{% endif %}">
                     
-                    <h3>Your Inventory Match</h3>
+                    <h3>
+                        {% if recipe.feasibility == 'high' %}
+                            <i class="fas fa-check-circle"></i> Ready to Cook!
+                        {% elif recipe.feasibility == 'medium' %}
+                            <i class="fas fa-exclamation-circle"></i> Partially Ready
+                        {% else %}
+                            <i class="fas fa-shopping-cart"></i> Shopping Needed
+                        {% endif %}
+                    </h3>
+                    
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: {{ recipe.ingredients_percentage }}%;"></div>
                     </div>
+                    
                     <p>
                         You have <strong>{{ recipe.has_count }} out of {{ recipe.total_count }}</strong> ingredients
-                        ({{ recipe.ingredients_percentage }}%)
+                        ({{ recipe.ingredients_percentage }}% match)
                     </p>
                     
-                    {% if recipe.ingredients_percentage >= 70 %}
-                    <p>🎉 Great! You can cook this recipe with minimal shopping!</p>
-                    {% elif recipe.ingredients_percentage >= 40 %}
-                    <p>⚠️ You have some ingredients, but need to shop for others.</p>
-                    {% else %}
-                    <p>📝 Consider adding missing items to your grocery list.</p>
-                    {% endif %}
+                    <p class="mb-0">
+                        <strong>{{ recipe.feasibility_text }}</strong>
+                        {% if recipe.feasibility == 'high' %}
+                            <span class="d-block mt-1">🎉 You can make this recipe right now!</span>
+                        {% elif recipe.feasibility == 'medium' %}
+                            <span class="d-block mt-1">🛒 You need a few more ingredients</span>
+                        {% else %}
+                            <span class="d-block mt-1">📝 Add missing items to your shopping list</span>
+                        {% endif %}
+                    </p>
                 </div>
                 
-                <!-- Tags -->
-                {% if recipe.tags %}
+                <!-- Shopping List Helper -->
+                {% if recipe.feasibility != 'high' %}
+                <div class="card mt-3" style="border-left: 4px solid var(--info-color);">
+                    <div class="card-body">
+                        <h5><i class="fas fa-list-alt"></i> Missing Ingredients</h5>
+                        <div class="missing-ingredients mt-2">
+                            {% for ingredient in recipe.ingredients %}
+                                {% if not ingredient.has_it %}
+                                <span class="badge badge-danger mr-2 mb-2">
+                                    {{ ingredient.name }}
+                                    {% if ingredient.amount and ingredient.unit %}
+                                    ({{ ingredient.amount }} {{ ingredient.unit }})
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <button class="btn btn-sm btn-outline mt-2" onclick="addToShoppingList()">
+                            <i class="fas fa-cart-plus"></i> Add to Shopping List
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Nutrition & Info -->
+                {% if recipe.healthScore or recipe.readyInMinutes or recipe.servings %}
+                <div style="margin-top: 30px;">
+                    <h3 class="section-title" style="font-size: 1.2rem;">Recipe Info</h3>
+                    <div class="nutrition-grid">
+                        {% if recipe.healthScore %}
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" style="color: var(--success-color);">
+                                {{ recipe.healthScore }}
+                            </div>
+                            <div class="nutrition-label">
+                                Health Score
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if recipe.readyInMinutes %}
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" style="color: var(--warning-color);">
+                                {{ recipe.readyInMinutes }}
+                            </div>
+                            <div class="nutrition-label">
+                                Minutes
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if recipe.servings %}
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" style="color: var(--primary-color);">
+                                {{ recipe.servings }}
+                            </div>
+                            <div class="nutrition-label">
+                                Servings
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if recipe.pricePerServing %}
+                        <div class="nutrition-item">
+                            <div class="nutrition-value" style="color: var(--info-color);">
+                                ${{ recipe.pricePerServing|floatformat:2 }}
+                            </div>
+                            <div class="nutrition-label">
+                                Cost/Serving
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Dietary Tags -->
+                {% if recipe.diets or recipe.dishTypes or recipe.tags %}
                 <div style="margin-top: 30px;">
                     <h3 class="section-title" style="font-size: 1.2rem;">Tags</h3>
                     <div class="tags-container">
-                        {% for tag in recipe.tags %}
-                        <span class="tag">{{ tag }}</span>
+                        {% for diet in recipe.diets %}
+                        <span class="tag" style="background-color: rgba(56, 178, 172, 0.1); color: var(--success-color);">
+                            {{ diet }}
+                        </span>
                         {% endfor %}
+                        {% for dish in recipe.dishTypes %}
+                        <span class="tag">{{ dish }}</span>
+                        {% endfor %}
+                        {% for tag in recipe.tags %}
+                            {% if tag and tag|length > 2 %}
+                            <span class="tag">{{ tag }}</span>
+                            {% endif %}
+                        {% endfor %}
+                        {% if recipe.vegan %}
+                        <span class="tag" style="background-color: rgba(107, 142, 35, 0.1); color: var(--secondary-color);">
+                            Vegan 🌱
+                        </span>
+                        {% endif %}
+                        {% if recipe.vegetarian %}
+                        <span class="tag" style="background-color: rgba(107, 142, 35, 0.1); color: var(--secondary-color);">
+                            Vegetarian
+                        </span>
+                        {% endif %}
+                        {% if recipe.glutenFree %}
+                        <span class="tag" style="background-color: rgba(255, 126, 95, 0.1); color: var(--accent-color);">
+                            Gluten-Free
+                        </span>
+                        {% endif %}
+                        {% if recipe.dairyFree %}
+                        <span class="tag" style="background-color: rgba(255, 126, 95, 0.1); color: var(--accent-color);">
+                            Dairy-Free
+                        </span>
+                        {% endif %}
+                        {% if recipe.is_indian %}
+                        <span class="tag" style="background-color: rgba(255, 153, 51, 0.1); color: #FF9933; border: 1px solid #FF9933;">
+                            🇮🇳 Indian
+                        </span>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -411,6 +645,18 @@
             <!-- Right Column: Instructions -->
             <div class="instructions-section">
                 <h2 class="section-title">Cooking Instructions</h2>
+                
+                <!-- Recipe Summary -->
+                {% if recipe.summary %}
+                <div class="card mb-3" style="background-color: rgba(74, 111, 165, 0.05);">
+                    <div class="card-body">
+                        <h5><i class="fas fa-info-circle"></i> About This Recipe</h5>
+                        <div class="recipe-summary" style="color: var(--text-secondary); line-height: 1.6;">
+                            {{ recipe.summary|safe }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 
                 <div class="instructions">
                     {% for step in recipe.instruction_steps %}
@@ -426,31 +672,45 @@
                         <div class="step-text">{{ recipe.instructions }}</div>
                     </div>
                     {% endif %}
+                    
+                    {% if not recipe.instruction_steps and not recipe.instructions %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        No detailed instructions available for this recipe. Try watching the video or visiting the source link for cooking instructions.
+                    </div>
+                    {% endif %}
                 </div>
                 
                 <!-- Action Buttons -->
                 <div class="recipe-actions">
-                    {% if recipe.youtube %}
-                    <a href="{{ recipe.youtube }}" target="_blank" class="btn btn-youtube">
-                        <i class="fab fa-youtube"></i> Watch on YouTube
+                    {% if recipe.sourceUrl %}
+                    <a href="{{ recipe.sourceUrl }}" target="_blank" class="btn btn-source">
+                        <i class="fas fa-external-link-alt"></i> View Original Recipe
                     </a>
                     {% endif %}
                     
-                    {% if recipe.source %}
-                    <a href="{{ recipe.source }}" target="_blank" class="btn btn-source">
-                        <i class="fas fa-external-link-alt"></i> View Original Source
+                    {% if recipe.spoonacularSourceUrl %}
+                    <a href="{{ recipe.spoonacularSourceUrl }}" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-utensils"></i> View on Spoonacular
                     </a>
                     {% endif %}
                     
-                    <a href="{% url 'recipes' %}" class="btn btn-primary">
+                    <a href="{% url 'recipes' %}" class="btn btn-outline">
                         <i class="fas fa-arrow-left"></i> Back to Recipes
                     </a>
+                    
+                    <button class="btn btn-success" onclick="addToShoppingList()">
+                        <i class="fas fa-shopping-cart"></i> Shopping List
+                    </button>
                 </div>
                 
                 <!-- Recipe Info -->
-                <div style="margin-top: 40px; padding: 15px; background: #f8f9fa; border-radius: 8px; color: #7f8c8d; font-size: 0.9rem; text-align: center;">
-                    <p>📡 Smart recipe matching based on your inventory</p>
-                    <p>Recipe suggestions powered by Grocify's intelligent algorithms</p>
+                <div style="margin-top: 40px; padding: 15px; background: rgba(74, 111, 165, 0.05); border-radius: 8px; color: var(--text-secondary); font-size: 0.9rem; text-align: center;">
+                    <p><i class="fas fa-brain"></i> Smart recipe matching based on your inventory</p>
+                    <p>Recipe suggestions powered by Spoonacular Food API with nutrition scores and detailed instructions.</p>
+                    {% if recipe.cached %}
+                    <p class="text-muted"><i class="fas fa-database"></i> Loaded from cache</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -474,6 +734,112 @@
                 progressFill.style.width = targetWidth;
             }, 500);
         }
+        
+        // Highlight Indian recipes
+        const indianTag = document.querySelector('.tag[style*="🇮🇳"]');
+        if (indianTag) {
+            // Add special animation for Indian recipes
+            indianTag.style.animation = 'pulse 2s infinite';
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes pulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                    100% { transform: scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
     });
+    
+    function addToShoppingList() {
+        const missingIngredients = [];
+        document.querySelectorAll('.ingredient-item').forEach(item => {
+            if (item.querySelector('.crossmark')) {
+                const name = item.querySelector('strong').textContent;
+                const measure = item.querySelector('.ingredient-measure').textContent;
+                missingIngredients.push({
+                    name: name,
+                    measure: measure.replace('✗ Need to buy • ', '').replace('✗ Need to buy this ingredient', '')
+                });
+            }
+        });
+        
+        if (missingIngredients.length === 0) {
+            alert('You have all the ingredients! No shopping needed. 🎉');
+            return;
+        }
+        
+        // Store in localStorage
+        let existingList = JSON.parse(localStorage.getItem('grocify_shopping_list') || '[]');
+        const newItems = missingIngredients.filter(item => 
+            !existingList.some(existing => existing.name === item.name)
+        );
+        
+        existingList = [...existingList, ...newItems];
+        localStorage.setItem('grocify_shopping_list', JSON.stringify(existingList));
+        
+        // Show confirmation
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: var(--bg-card); padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
+                <h3 style="margin-bottom: 1rem;">
+                    <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                    Added to Shopping List
+                </h3>
+                <p>Added ${newItems.length} items to your shopping list:</p>
+                <ul style="margin: 1rem 0; padding-left: 1.5rem; max-height: 200px; overflow-y: auto;">
+                    ${newItems.map(item => `<li>${item.name} ${item.measure ? `(${item.measure})` : ''}</li>`).join('')}
+                </ul>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button onclick="this.closest('div[style*=\"position: fixed\"]').remove()" 
+                            style="flex: 1; padding: 0.75rem; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        OK
+                    </button>
+                    <button onclick="viewShoppingList()" 
+                            style="flex: 1; padding: 0.75rem; background: var(--secondary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        View List
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+    
+    function viewShoppingList() {
+        // Close modal
+        document.querySelector('div[style*="position: fixed"]')?.remove();
+        
+        // Show shopping list in console or could redirect to a shopping list page
+        const shoppingList = JSON.parse(localStorage.getItem('grocify_shopping_list') || '[]');
+        if (shoppingList.length === 0) {
+            alert('Your shopping list is empty.');
+        } else {
+            let listText = 'Your Shopping List:\n\n';
+            shoppingList.forEach((item, index) => {
+                listText += `${index + 1}. ${item.name} ${item.measure ? `(${item.measure})` : ''}\n`;
+            });
+            alert(listText);
+        }
+    }
+    
+    // Print recipe function
+    function printRecipe() {
+        window.print();
+    }
 </script>
 {% endblock %}

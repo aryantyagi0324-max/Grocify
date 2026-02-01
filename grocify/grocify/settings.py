@@ -131,8 +131,7 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 
-# API Configuration (TheMealDB - FREE, no API key needed)
-RECIPE_API = 'themealdb'  # Using TheMealDB API
+
 
 # Cache settings for recipes
 CACHES = {
@@ -141,3 +140,8 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
+
+# Spoonacular API Configuration
+SPOONACULAR_API_KEY = "3d2234c00dd2455698770708eb38a7c5"  # Get from https://spoonacular.com/food-api
+SPOONACULAR_BASE_URL = 'https://api.spoonacular.com'
+RECIPE_API = 'spoonacular'  # Change from 'themealdb' to 'spoonacular'

@@ -504,96 +504,62 @@ def recipes(request):
 
 @login_required
 def recipe_detail(request, recipe_id):
-    """Detailed recipe view"""
+    """Detailed recipe view using Spoonacular API"""
     # Check cache first
     cache_key = f"recipe_detail_full_{recipe_id}"
     recipe_data = cache.get(cache_key)
     
     if not recipe_data:
-        # Fetch recipe details
-        try:
-            url = "https://www.themealdb.com/api/json/v1/1/lookup.php"
-            params = {'i': recipe_id}
+        # Fetch recipe details from Spoonacular
+        from .api_utils import get_recipe_details
+        recipe_data = get_recipe_details(recipe_id)
+        
+        if recipe_data and 'error' not in recipe_data:
+            # Get user's inventory items for comparison
+            user_items = FoodItem.objects.filter(user=request.user)
+            user_ingredients = [item.name.lower() for item in user_items]
             
-            response = requests.get(url, params=params, timeout=8)
+            # Smart ingredient matching - check quantity availability
+            from .api_utils import check_ingredient_match
             
-            if response.status_code == 200:
-                data = response.json()
-                meals = data.get('meals', [])
+            if recipe_data.get('ingredients'):
+                matched_count = 0
+                for ingredient in recipe_data['ingredients']:
+                    ingredient_name = ingredient.get('name', '').lower()
+                    
+                    # Check if user has this ingredient (any quantity)
+                    has_ingredient = False
+                    for user_ing in user_ingredients:
+                        if check_ingredient_match(user_ing, ingredient_name):
+                            has_ingredient = True
+                            break
+                    
+                    ingredient['has_it'] = has_ingredient
+                    if has_ingredient:
+                        matched_count += 1
                 
-                if meals:
-                    meal = meals[0]
-                    
-                    # Extract ingredients and measures
-                    ingredients = []
-                    for i in range(1, 21):
-                        ingredient = meal.get(f'strIngredient{i}', '').strip()
-                        measure = meal.get(f'strMeasure{i}', '').strip()
-                        
-                        if ingredient:
-                            ingredients.append({
-                                'name': ingredient,
-                                'measure': measure
-                            })
-                    
-                    # Get user's inventory items for comparison
-                    user_items = FoodItem.objects.filter(user=request.user)
-                    user_ingredients = [item.name.lower() for item in user_items]
-                    
-                    # Check which ingredients user has
-                    for ingredient in ingredients:
-                        ingredient_name = ingredient['name'].lower()
-                        ingredient['has_it'] = any(
-                            user_ing in ingredient_name or ingredient_name in user_ing 
-                            for user_ing in user_ingredients
-                        )
-                    
-                    # Count how many ingredients user has
-                    has_count = sum(1 for ing in ingredients if ing.get('has_it'))
-                    total_count = len(ingredients)
-                    
-                    # Create cooking instructions
-                    instructions = meal.get('strInstructions', '')
-                    
-                    # Try to parse existing instructions
-                    parsed_steps = parse_existing_instructions(instructions)
-                    
-                    # If parsed instructions are good (at least 3 steps), use them
-                    if len(parsed_steps) >= 3:
-                        instruction_steps = parsed_steps
-                    else:
-                        # Generate smart instructions from scratch
-                        instruction_steps = create_smart_instructions(meal, ingredients)
-                    
-                    # Prepare recipe data
-                    recipe_data = {
-                        'id': meal.get('idMeal'),
-                        'title': meal.get('strMeal', 'Unknown Recipe'),
-                        'category': meal.get('strCategory', ''),
-                        'area': meal.get('strArea', ''),
-                        'instructions': instructions,
-                        'instruction_steps': instruction_steps,
-                        'image': meal.get('strMealThumb', ''),
-                        'youtube': meal.get('strYoutube', ''),
-                        'source': meal.get('strSource', ''),
-                        'ingredients': ingredients,
-                        'tags': meal.get('strTags', '').split(',') if meal.get('strTags') else [],
-                        'has_count': has_count,
-                        'total_count': total_count,
-                        'ingredients_percentage': int((has_count / total_count * 100)) if total_count > 0 else 0,
-                        'cached': False
-                    }
-                    
-                    # Cache for 24 hours
-                    cache.set(cache_key, recipe_data, 86400)
-                    
+                # Calculate match percentage
+                total_count = len(recipe_data['ingredients'])
+                recipe_data['has_count'] = matched_count
+                recipe_data['total_count'] = total_count
+                recipe_data['ingredients_percentage'] = int((matched_count / total_count * 100)) if total_count > 0 else 0
+                
+                # Determine recipe feasibility
+                if matched_count >= total_count * 0.7:
+                    recipe_data['feasibility'] = 'high'
+                    recipe_data['feasibility_text'] = 'You have most ingredients!'
+                elif matched_count >= total_count * 0.4:
+                    recipe_data['feasibility'] = 'medium'
+                    recipe_data['feasibility_text'] = 'You have some ingredients'
                 else:
-                    recipe_data = {'error': 'Recipe not found'}
-            else:
-                recipe_data = {'error': 'Error fetching recipe'}
-                
-        except Exception as e:
-            recipe_data = {'error': f'Error: {str(e)}'}
+                    recipe_data['feasibility'] = 'low'
+                    recipe_data['feasibility_text'] = 'You need to shop for most ingredients'
+            
+            recipe_data['cached'] = False
+            # Cache for 12 hours
+            cache.set(cache_key, recipe_data, 43200)
+        else:
+            recipe_data = {'error': 'Recipe not found or API error'}
     else:
         recipe_data['cached'] = True
     
