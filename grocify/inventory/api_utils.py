@@ -8,6 +8,8 @@ import concurrent.futures
 from datetime import date
 import time
 import re
+import string
+
 def get_recipes_by_ingredients(ingredients, number=10):
     """
     Get recipes based on available ingredients using Spoonacular API
@@ -76,16 +78,16 @@ def get_recipes_by_ingredients(ingredients, number=10):
             else:
                 formatted_recipes = []
         
-        # FALLBACK: If no recipes found from API, use default Indian recipes
+        # FALLBACK: If no recipes found from API, use our Indian recipes
         if not formatted_recipes and INDIAN_RECIPES:
             print("⚠️ Using fallback Indian recipes")
             formatted_recipes = []
             for indian_recipe in INDIAN_RECIPES[:number]:
                 # Check if user has any ingredients for this recipe
                 recipe_ingredients = [ing['name'].lower() for ing in indian_recipe['ingredients']]
-                user_has_any = any(any(user_ing in recipe_ing or recipe_ing in user_ing 
-                                     for recipe_ing in recipe_ingredients) 
-                                 for user_ing in ingredients[:5])
+                user_has_any = any(_check_ingredient_match_smart(user_ing, recipe_ing) 
+                                 for user_ing in ingredients[:5]
+                                 for recipe_ing in recipe_ingredients)
                 
                 if user_has_any:
                     formatted_recipe = {
@@ -140,7 +142,7 @@ def get_recipes_by_ingredients(ingredients, number=10):
         # Return fallback Indian recipes on error
         if INDIAN_RECIPES:
             formatted_recipes = []
-            for indian_recipe in INDIAN_RECIPES[:min(number, 4)]:
+            for indian_recipe in INDIAN_RECIPES[:min(number, 8)]:
                 formatted_recipe = {
                     'id': indian_recipe['id'],
                     'title': indian_recipe['title'],
@@ -159,18 +161,18 @@ def get_recipes_by_ingredients(ingredients, number=10):
                     'tags': indian_recipe['tags'],
                     'source': '',
                     'spoonacular_score': 0,
-                    'health_score': 0,
-                    'price_per_serving': 0,
-                    'very_popular': True,
-                    'very_healthy': True,
-                    'dairy_free': 'dairy' not in str(indian_recipe).lower(),
-                    'gluten_free': 'gluten' not in str(indian_recipe).lower(),
-                    'vegan': True,
-                    'vegetarian': True,
-                    'cuisines': ['Indian'],
-                    'is_indian': True,
-                    'api': 'spoonacular_fallback_error'
-                }
+                        'health_score': 0,
+                        'price_per_serving': 0,
+                        'very_popular': True,
+                        'very_healthy': True,
+                        'dairy_free': 'dairy' not in str(indian_recipe).lower(),
+                        'gluten_free': 'gluten' not in str(indian_recipe).lower(),
+                        'vegan': True,
+                        'vegetarian': True,
+                        'cuisines': ['Indian'],
+                        'is_indian': True,
+                        'api': 'spoonacular_fallback_error'
+                    }
                 formatted_recipes.append(formatted_recipe)
             
             return {
@@ -224,11 +226,11 @@ def _search_indian_recipes_by_ingredients(ingredients, number=5):
                 recipe_ingredients = [ing['name'].lower() for ing in recipe.get('extendedIngredients', [])]
                 recipe_ingredients_clean = [ing['nameClean'].lower() for ing in recipe.get('extendedIngredients', []) if ing.get('nameClean')]
                 
-                # Check if recipe contains any of our ingredients
+                # Check if recipe contains any of our ingredients using smart matching
                 for user_ing in ingredients[:5]:  # Check against first 5 user ingredients
                     user_ing_lower = user_ing.lower()
-                    if (any(user_ing_lower in ing for ing in recipe_ingredients) or 
-                        any(user_ing_lower in ing for ing in recipe_ingredients_clean)):
+                    if (any(_check_ingredient_match_smart(user_ing_lower, ing) for ing in recipe_ingredients) or 
+                        any(_check_ingredient_match_smart(user_ing_lower, ing) for ing in recipe_ingredients_clean)):
                         filtered_recipes.append(recipe)
                         break
             
@@ -305,7 +307,8 @@ def _format_recipe_spoonacular(recipe):
             'original': ingredient.get('original', ''),
             'amount': ingredient.get('amount'),
             'unit': ingredient.get('unit'),
-            'id': ingredient.get('id')
+            'id': ingredient.get('id'),
+            'nameClean': ingredient.get('nameClean', '').lower()
         })
     
     # Get cooking time
@@ -362,7 +365,7 @@ def _format_recipe_spoonacular(recipe):
 def get_recipe_suggestions(user_items):
     """
     Get recipe suggestions based on user's inventory using Spoonacular
-    Prioritize recipes based on what user actually has
+    Prioritize recipes based on what user actually has with smart matching
     """
     # Extract ingredient names
     ingredients = [item.name.lower() for item in user_items if item.name]
@@ -378,6 +381,7 @@ def get_recipe_suggestions(user_items):
         'paneer': 'paneer',
         'butter': 'butter',
         'ghee': 'ghee',
+        'cream': 'cream',
         
         # Proteins
         'egg': 'eggs',
@@ -407,6 +411,9 @@ def get_recipe_suggestions(user_items):
         'okra': 'okra',
         'bhindi': 'okra',
         'beans': 'green beans',
+        'cabbage': 'cabbage',
+        'peas': 'peas',
+        'matar': 'peas',
         
         # Lentils & Grains
         'rice': 'rice',
@@ -419,6 +426,7 @@ def get_recipe_suggestions(user_items):
         'chana': 'chickpeas',
         'flour': 'flour',
         'atta': 'flour',
+        'besan': 'gram flour',
         
         # Spices
         'turmeric': 'turmeric',
@@ -438,6 +446,8 @@ def get_recipe_suggestions(user_items):
         'dalchini': 'cinnamon',
         'clove': 'cloves',
         'laung': 'cloves',
+        'pepper': 'black pepper',
+        'kali mirch': 'black pepper',
         
         # Basic
         'salt': 'salt',
@@ -452,6 +462,8 @@ def get_recipe_suggestions(user_items):
         'nimbu': 'lemon',
         'mango': 'mango',
         'aam': 'mango',
+        'banana': 'banana',
+        'kela': 'banana',
     }
     
     # Map ingredients to common names
@@ -465,7 +477,10 @@ def get_recipe_suggestions(user_items):
         
         # Remove common measurement words
         measurement_words = ['kg', 'kgs', 'gram', 'grams', 'g', 'liter', 'liters', 'l', 'ml', 
-                           'piece', 'pieces', 'pc', 'pcs', 'cup', 'cups', 'tsp', 'tbsp', 'oz']
+                           'cup', 'cups', 'tsp', 'tbsp', 'oz', 'pound', 'pounds', 'lb', 'lbs',
+                           'piece', 'pieces', 'pc', 'pcs', 'slice', 'slices', 'clove', 'cloves',
+                           'bunch', 'bunches', 'pack', 'packs', 'bottle', 'bottles', 'can', 'cans',
+                           'jar', 'jars', 'packet', 'packets', 'box', 'boxes']
         for word in measurement_words:
             ingredient_clean = re.sub(rf'\b{word}\b', '', ingredient_clean)
         
@@ -489,6 +504,8 @@ def get_recipe_suggestions(user_items):
             unique_ingredients.append('garam masala')
         if 'turmeric' not in unique_ingredients:
             unique_ingredients.append('turmeric')
+        if 'cumin' not in unique_ingredients:
+            unique_ingredients.append('cumin')
     
     # Limit ingredients for API call
     search_ingredients = unique_ingredients[:10]
@@ -502,34 +519,51 @@ def get_recipe_suggestions(user_items):
         }
     
     # Use Spoonacular API - get more recipes to filter
-    recipe_data = get_recipes_by_ingredients(search_ingredients, number=12)
+    recipe_data = get_recipes_by_ingredients(search_ingredients, number=15)
     
     # Filter recipes to show only those where user has most ingredients
     if recipe_data.get('recipes'):
         user_ingredients_set = set(search_ingredients)
+        scored_recipes = []
         
         for recipe in recipe_data['recipes']:
-            # Calculate ingredient match percentage
-            recipe_ingredients = [ing['name'].lower() for ing in recipe['ingredients']]
+            # Calculate ingredient match score with smart matching
+            recipe_ingredients = []
+            if isinstance(recipe.get('ingredients'), list):
+                recipe_ingredients = [ing.get('nameClean', ing.get('name', '')).lower() 
+                                     for ing in recipe['ingredients'] 
+                                     if ing.get('nameClean') or ing.get('name')]
             
-            # Find matching ingredients (fuzzy match)
-            matching_ingredients = 0
-            for user_ing in user_ingredients_set:
+            # Calculate match score
+            match_score = 0
+            total_ingredients = len(recipe_ingredients)
+            
+            if total_ingredients > 0:
                 for recipe_ing in recipe_ingredients:
-                    # Check if user ingredient is in recipe ingredient or vice versa
-                    if (user_ing in recipe_ing or recipe_ing in user_ing or
-                        any(word in recipe_ing for word in user_ing.split()) or
-                        any(word in user_ing for word in recipe_ing.split())):
-                        matching_ingredients += 1
-                        break
-            
-            recipe['match_percentage'] = int((matching_ingredients / len(recipe_ingredients) * 100)) if recipe_ingredients else 0
-            recipe['matching_ingredients'] = matching_ingredients
+                    for user_ing in user_ingredients_set:
+                        if _check_ingredient_match_smart(user_ing, recipe_ing):
+                            match_score += 1
+                            break
+                
+                recipe['match_percentage'] = int((match_score / total_ingredients) * 100)
+                recipe['matching_ingredients'] = match_score
+                recipe['total_recipe_ingredients'] = total_ingredients
+                
+                # Add to scored recipes
+                scored_recipes.append(recipe)
         
         # Sort by match percentage (highest first)
-        recipe_data['recipes'].sort(key=lambda x: x['match_percentage'], reverse=True)
-        # Keep only top matches
-        recipe_data['recipes'] = recipe_data['recipes'][:8]
+        scored_recipes.sort(key=lambda x: x['match_percentage'], reverse=True)
+        
+        # Filter out recipes with very low match percentage (< 20%)
+        filtered_recipes = [r for r in scored_recipes if r['match_percentage'] >= 20]
+        
+        # If we have filtered recipes, use them
+        if filtered_recipes:
+            recipe_data['recipes'] = filtered_recipes[:10]
+        else:
+            # If no good matches, show top recipes anyway
+            recipe_data['recipes'] = scored_recipes[:8]
     
     return recipe_data
 
@@ -538,7 +572,6 @@ def get_recipe_details(recipe_id):
     # Check if it's a fallback Indian recipe ID
     if recipe_id.startswith('indian_'):
         # Find the Indian recipe
-        from .indian_recipes import INDIAN_RECIPES
         for recipe in INDIAN_RECIPES:
             if recipe['id'] == recipe_id:
                 # Convert to Spoonacular format
@@ -620,7 +653,8 @@ def get_recipe_details(recipe_id):
                     'original': ingredient.get('original'),
                     'amount': ingredient.get('amount'),
                     'unit': ingredient.get('unit'),
-                    'measures': ingredient.get('measures', {})
+                    'measures': ingredient.get('measures', {}),
+                    'nameClean': ingredient.get('nameClean', '').lower()
                 })
             
             detailed_recipe = {
@@ -658,29 +692,54 @@ def get_recipe_details(recipe_id):
     
     return None
 
-def check_ingredient_match(user_ingredient, recipe_ingredient):
+def _check_ingredient_match_smart(user_ingredient, recipe_ingredient):
     """
-    Smart ingredient matching function
-    Returns True if user has the ingredient (even if quantity differs)
+    SMART ingredient matching function
+    Returns True only if user has the EXACT or very similar ingredient
     """
-    user_ing = user_ingredient.lower()
-    recipe_ing = recipe_ingredient.lower()
+    if not user_ingredient or not recipe_ingredient:
+        return False
     
-    # Remove quantities and measurements
-    user_clean = re.sub(r'\d+\s*', '', user_ing)
-    recipe_clean = re.sub(r'\d+\s*', '', recipe_ing)
+    user_ing = user_ingredient.lower().strip()
+    recipe_ing = recipe_ingredient.lower().strip()
     
-    # Remove common measurement words
-    measurement_words = ['kg', 'kgs', 'gram', 'grams', 'g', 'liter', 'liters', 'l', 'ml', 
-                       'cup', 'cups', 'tsp', 'tbsp', 'oz', 'pound', 'pounds', 'lb', 'lbs',
-                       'piece', 'pieces', 'pc', 'pcs', 'slice', 'slices', 'clove', 'cloves']
+    # Remove punctuation
+    user_ing = user_ing.translate(str.maketrans('', '', string.punctuation))
+    recipe_ing = recipe_ing.translate(str.maketrans('', '', string.punctuation))
     
-    for word in measurement_words:
-        user_clean = re.sub(rf'\b{word}\b', '', user_clean)
-        recipe_clean = re.sub(rf'\b{word}\b', '', recipe_clean)
+    # Remove common filler words
+    filler_words = ['fresh', 'dried', 'powdered', 'ground', 'chopped', 'sliced', 'diced', 
+                   'minced', 'grated', 'crushed', 'whole', 'raw', 'cooked', 'roasted',
+                   'toasted', 'optional', 'for garnish', 'as needed', 'to taste']
     
-    user_clean = user_clean.strip()
-    recipe_clean = recipe_clean.strip()
+    for word in filler_words:
+        user_ing = re.sub(rf'\b{word}\b', '', user_ing)
+        recipe_ing = re.sub(rf'\b{word}\b', '', recipe_ing)
+    
+    user_ing = user_ing.strip()
+    recipe_ing = recipe_ing.strip()
+    
+    # Check for exact match
+    if user_ing == recipe_ing:
+        return True
+    
+    # Check if one is contained in the other (but not partial word matches)
+    # This prevents "milk" matching "coconut milk"
+    if user_ing in recipe_ing:
+        # Check if it's a whole word match, not partial
+        words = recipe_ing.split()
+        if user_ing in words:
+            return True
+        # Check if user_ing is at the end (like "coconut milk" has "milk" at end)
+        if recipe_ing.endswith(user_ing) and recipe_ing[-len(user_ing)-1] == ' ':
+            return True
+    
+    if recipe_ing in user_ing:
+        words = user_ing.split()
+        if recipe_ing in words:
+            return True
+        if user_ing.endswith(recipe_ing) and user_ing[-len(recipe_ing)-1] == ' ':
+            return True
     
     # Common ingredient synonyms for Indian cooking
     synonyms = {
@@ -710,26 +769,55 @@ def check_ingredient_match(user_ingredient, recipe_ingredient):
         'cardamom': ['elaichi'],
         'cinnamon': ['dalchini'],
         'clove': ['laung'],
+        'milk': ['doodh'],
+        'butter': ['makkhan'],
+        'paneer': ['cottage cheese'],
+        'cream': ['malai'],
+        'flour': ['maida'],
+        'gram flour': ['besan'],
+        'fenugreek': ['methi'],
+        'asafoetida': ['hing'],
+        'tamarind': ['imli'],
+        'jaggery': ['gur'],
     }
-    
-    # Check direct match
-    if user_clean in recipe_clean or recipe_clean in user_clean:
-        return True
     
     # Check synonym match
     for base_ing, syn_list in synonyms.items():
-        if user_clean in syn_list and recipe_clean in syn_list:
+        if user_ing in syn_list and recipe_ing in syn_list:
             return True
-        if user_clean == base_ing and recipe_clean in syn_list:
+        if user_ing == base_ing and recipe_ing in syn_list:
             return True
-        if recipe_clean == base_ing and user_clean in syn_list:
+        if recipe_ing == base_ing and user_ing in syn_list:
             return True
     
-    # Check word-by-word match
-    user_words = set(user_clean.split())
-    recipe_words = set(recipe_clean.split())
+    # Check word-by-word match for multi-word ingredients
+    user_words = set(user_ing.split())
+    recipe_words = set(recipe_ing.split())
     
-    if user_words.intersection(recipe_words):
-        return True
+    common_words = user_words.intersection(recipe_words)
+    if common_words:
+        # Only return true if common words are significant (not filler)
+        significant_words = [w for w in common_words if len(w) > 2 and w not in filler_words]
+        if significant_words:
+            return True
+    
+    # Special case: prevent "milk" matching "coconut milk" or "almond milk"
+    if user_ing == 'milk':
+        if 'coconut' in recipe_ing or 'almond' in recipe_ing or 'soy' in recipe_ing or 'oat' in recipe_ing:
+            return False
+        if recipe_ing.endswith(' milk') and recipe_ing != 'milk':
+            return False
+    
+    # Special case: prevent "flour" matching specific flours
+    if user_ing == 'flour':
+        if 'wheat' in recipe_ing or 'rice' in recipe_ing or 'gram' in recipe_ing or 'all purpose' in recipe_ing:
+            return False
     
     return False
+
+def check_ingredient_match(user_ingredient, recipe_ingredient):
+    """
+    Wrapper function for backward compatibility
+    Uses the new smart matching
+    """
+    return _check_ingredient_match_smart(user_ingredient, recipe_ingredient)

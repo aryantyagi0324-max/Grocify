@@ -1,233 +1,20 @@
-from .api_utils import get_recipe_suggestions
+"""
+Views for the Grocify inventory management application.
+"""
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from .forms import CustomUserCreationForm, LoginForm, FoodItemForm
-from .models import FoodItem
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, date
 import re
-import requests
-from django.core.cache import cache
 import random
-import threading
-from datetime import date
 
-# Helper functions for recipe instructions
-def create_smart_instructions(meal, ingredients):
-    """Create detailed cooking instructions from scratch"""
-    steps = []
-    step_num = 1
-    
-    # Get recipe info
-    title = meal.get('strMeal', 'Recipe').lower()
-    category = meal.get('strCategory', 'General').lower()
-    area = meal.get('strArea', '').lower()
-    
-    # Step 1: Preparation
-    prep_items = []
-    for ing in ingredients[:8]:  # Limit to first 8 ingredients
-        if ing['measure'].strip():
-            prep_items.append(f"{ing['measure']} {ing['name']}")
-        else:
-            prep_items.append(ing['name'])
-    
-    if prep_items:
-        steps.append({
-            'number': step_num,
-            'text': f"Gather and prepare your ingredients: {', '.join(prep_items[:5])}" + 
-                   (f" and {len(prep_items) - 5} more items" if len(prep_items) > 5 else "")
-        })
-        step_num += 1
-    
-    # Step 2: Initial preparation based on category
-    if 'chicken' in title or 'meat' in title or 'beef' in title or 'pork' in title:
-        steps.append({
-            'number': step_num,
-            'text': f"Clean and pat dry the meat. Cut into bite-sized pieces if needed. Season with salt and pepper."
-        })
-        step_num += 1
-    elif 'vegetable' in category or 'salad' in category or any(v in title for v in ['salad', 'vegetable', 'veggie']):
-        steps.append({
-            'number': step_num,
-            'text': f"Wash all vegetables thoroughly. Chop, dice, or slice according to your preference."
-        })
-        step_num += 1
-    elif 'dessert' in category or 'cake' in title or 'cookie' in title or 'pie' in title:
-        steps.append({
-            'number': step_num,
-            'text': f"Preheat oven to 350°F (175°C). Grease baking dish or line with parchment paper."
-        })
-        step_num += 1
-    
-    # Step 3: Cooking method based on area/category
-    cooking_methods = {
-        'italian': "Heat olive oil in a large pan over medium heat",
-        'mexican': "Heat oil in a skillet or comal over medium-high heat",
-        'indian': "Heat ghee or oil in a kadai or deep pan over medium heat",
-        'chinese': "Heat vegetable oil in a wok over high heat",
-        'american': "Heat oil or butter in a large skillet over medium heat",
-        'british': "Melt butter in a saucepan over medium heat",
-        'japanese': "Prepare your cooking station with all ingredients within reach",
-        'french': "Melt butter in a sauté pan over medium-low heat",
-    }
-    
-    cooking_method = cooking_methods.get(area, "Heat oil in a pan over medium heat")
-    steps.append({
-        'number': step_num,
-        'text': cooking_method + "."
-    })
-    step_num += 1
-    
-    # Step 4-6: Cooking steps
-    cooking_steps = [
-        "Add main ingredients and cook until they start to brown, about 5-7 minutes",
-        "Add aromatic vegetables (like onions, garlic, ginger) and cook until fragrant, about 2-3 minutes",
-        "Add any spices or seasonings and toast for 30 seconds to release their flavors",
-        "Add liquid ingredients (broth, water, cream, tomatoes) and bring to a simmer",
-        "Reduce heat to low, cover, and let cook for 15-20 minutes until everything is tender",
-        "Taste and adjust seasoning with salt, pepper, or other spices as needed",
-        "If the dish is too thin, let it simmer uncovered to reduce. If too thick, add a splash of water or broth",
-        "Cook until all ingredients are tender and flavors are well combined"
-    ]
-    
-    # Select appropriate cooking steps based on dish type
-    if 'soup' in title or 'stew' in title or 'curry' in title:
-        selected_steps = [0, 3, 4, 5, 6]  # Indexes for soup-like dishes
-    elif 'stir' in title or 'fry' in title:
-        selected_steps = [0, 1, 2, 7]  # Indexes for stir-fries
-    elif 'bake' in title or 'roast' in title:
-        selected_steps = [4, 5, 7]  # Indexes for baked dishes
-    else:
-        selected_steps = [0, 1, 2, 4, 5]  # Default selection
-    
-    for idx in selected_steps[:3]:  # Take first 3 selected steps
-        steps.append({
-            'number': step_num,
-            'text': cooking_steps[idx] + "."
-        })
-        step_num += 1
-    
-    # Step 7: Finishing touches
-    finishing_options = [
-        "Garnish with fresh herbs before serving",
-        "Drizzle with a finishing oil or sauce",
-        "Serve with suggested accompaniments",
-        "Let rest for 5 minutes before serving to allow flavors to meld",
-        "Adjust consistency with additional liquid if needed"
-    ]
-    
-    steps.append({
-        'number': step_num,
-        'text': random.choice(finishing_options) + "."
-    })
-    step_num += 1
-    
-    # Final step: Serving
-    serving_options = [
-        f"Serve hot, garnished with fresh herbs",
-        f"Enjoy immediately while warm and fresh",
-        f"Plate beautifully and serve with your favorite sides",
-        f"Serve in individual bowls or on a large platter for sharing"
-    ]
-    
-    steps.append({
-        'number': step_num,
-        'text': random.choice(serving_options) + "."
-    })
-    
-    return steps
+from .models import FoodItem
+from .forms import CustomUserCreationForm, LoginForm, FoodItemForm
+from .api_utils import get_recipe_suggestions, get_recipe_details, check_ingredient_match
 
-def parse_existing_instructions(instructions):
-    """Parse existing instructions into proper steps"""
-    steps = []
-    
-    if not instructions or len(instructions.strip()) < 10:
-        return steps
-    
-    # Clean the instructions
-    instructions = instructions.strip()
-    
-    # Try different splitting methods
-    # Method 1: Split by numbered steps (1., 2., etc.)
-    numbered_pattern = r'(\d+)[\.\)]\s*'
-    if re.search(numbered_pattern, instructions):
-        parts = re.split(numbered_pattern, instructions)
-        step_num = 1
-        for i in range(1, len(parts), 2):
-            if i + 1 < len(parts):
-                text = parts[i + 1].strip()
-                if text:
-                    # Clean up the text
-                    text = re.sub(r'^\d+[\.\)]\s*', '', text)
-                    text = text.strip()
-                    
-                    # Capitalize first letter
-                    if text and not text[0].isupper():
-                        text = text[0].upper() + text[1:]
-                    
-                    # Ensure it ends with punctuation
-                    if text and not text[-1] in '.!?':
-                        text += '.'
-                    
-                    steps.append({
-                        'number': step_num,
-                        'text': text
-                    })
-                    step_num += 1
-    
-    # Method 2: Split by line breaks
-    if not steps and '\n' in instructions:
-        lines = instructions.split('\n')
-        for i, line in enumerate(lines, 1):
-            line = line.strip()
-            if line and len(line) > 5:  # Skip very short lines
-                # Clean the line
-                line = re.sub(r'^\d+[\.\)]\s*', '', line)
-                line = line.strip()
-                
-                if line:
-                    # Capitalize first letter
-                    if line and not line[0].isupper():
-                        line = line[0].upper() + line[1:]
-                    
-                    # Ensure it ends with punctuation
-                    if line and not line[-1] in '.!?':
-                        line += '.'
-                    
-                    steps.append({
-                        'number': i,
-                        'text': line
-                    })
-    
-    # Method 3: Split by sentences
-    if not steps:
-        # Split by sentence endings
-        sentences = re.split(r'(?<=[.!?])\s+', instructions)
-        for i, sentence in enumerate(sentences, 1):
-            sentence = sentence.strip()
-            if sentence and len(sentence.split()) > 3:  # Skip very short sentences
-                # Clean the sentence
-                sentence = re.sub(r'^\d+[\.\)]\s*', '', sentence)
-                sentence = sentence.strip()
-                
-                if sentence:
-                    # Capitalize first letter
-                    if sentence and not sentence[0].isupper():
-                        sentence = sentence[0].upper() + sentence[1:]
-                    
-                    steps.append({
-                        'number': i,
-                        'text': sentence
-                    })
-    
-    # Limit to reasonable number of steps
-    if len(steps) > 12:
-        steps = steps[:12]
-    
-    return steps
 
 # Public views
 def home(request):
@@ -244,26 +31,54 @@ def home(request):
     }
     return render(request, 'home.html', context)
 
+
 def about(request):
     """About page view"""
     return render(request, 'about.html', {'page_title': 'About Grocify'})
 
+
 def signup_view(request):
-    """User registration view"""
+    """
+    User registration view
+    User must login separately after signup
+    """
+    if request.user.is_authenticated:
+        messages.info(request, 'You are already logged in!')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
+            # Save the user but DO NOT log them in automatically
             user = form.save()
-            login(request, user)
-            messages.success(request, 'Account created successfully! Welcome to Grocify!')
-            return redirect('dashboard')
+            
+            # Get user info for success message
+            username = form.cleaned_data.get('username')
+            email = form.cleaned_data.get('email')
+            
+            # Show success message and redirect to login page
+            messages.success(
+                request, 
+                f'Account created successfully for {username}! '
+                f'Please login with your credentials to continue.'
+            )
+            
+            # Redirect to login page
+            return redirect('login')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = CustomUserCreationForm()
     
     return render(request, 'auth/signup.html', {'form': form, 'page_title': 'Sign Up'})
 
+
 def login_view(request):
     """User login view"""
+    if request.user.is_authenticated:
+        messages.info(request, 'You are already logged in!')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
         form = LoginForm(request.POST)
         if form.is_valid():
@@ -274,26 +89,32 @@ def login_view(request):
             if user is not None:
                 login(request, user)
                 messages.success(request, f'Welcome back, {username}!')
-                return redirect('dashboard')
+                
+                # Check for 'next' parameter to redirect to intended page
+                next_page = request.GET.get('next', 'dashboard')
+                return redirect(next_page)
             else:
                 messages.error(request, 'Invalid username or password.')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = LoginForm()
     
     return render(request, 'auth/login.html', {'form': form, 'page_title': 'Login'})
 
+
 def logout_view(request):
     """User logout view"""
-    logout(request)
-    messages.info(request, 'You have been logged out.')
+    if request.user.is_authenticated:
+        logout(request)
+        messages.info(request, 'You have been logged out.')
     return redirect('home')
+
 
 # Protected views (require login)
 @login_required
 def dashboard(request):
     """User dashboard - only accessible when logged in"""
-    from datetime import date, timedelta
-    
     user_items = FoodItem.objects.filter(user=request.user)
     
     # Get today's date
@@ -342,7 +163,7 @@ def dashboard(request):
     expiring_items = expiring_items_list[:5]
     expired_items_display = expired_items_list[:5]
     
-    # Recent items (excluding expiring/expired)
+    # Recent items
     recent_items = user_items.order_by('-added_date')[:5]
     
     # Expiry summary
@@ -368,13 +189,13 @@ def dashboard(request):
     
     return render(request, 'dashboard.html', context)
 
+
 @login_required
 def inventory_list(request):
-    """List all inventory items for the logged-in user - FIXED VERSION"""
-    user_items = FoodItem.objects.filter(user=request.user).order_by('expiry_date')
+    """List all inventory items for the logged-in user"""
+    user_items = FoodItem.objects.filter(user=request.user)
     
     # Get today's date for calculations
-    from datetime import date
     today = date.today()
     
     # Get filter from request
@@ -386,6 +207,9 @@ def inventory_list(request):
     search_query = request.GET.get('search', '')
     if search_query:
         user_items = user_items.filter(name__icontains=search_query)
+    
+    # Order by expiry date (closest first)
+    user_items = user_items.order_by('expiry_date', 'name')
     
     # Calculate stats for the inventory page
     expired_count = 0
@@ -411,6 +235,7 @@ def inventory_list(request):
     }
     return render(request, 'inventory/list.html', context)
 
+
 @login_required
 def add_item(request):
     """Add a new food item"""
@@ -426,14 +251,19 @@ def add_item(request):
             
             messages.success(request, f'"{item.name}" added to your inventory!')
             return redirect('inventory_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
-        form = FoodItemForm()
+        # Set default expiry date to 7 days from now
+        initial_date = date.today() + timedelta(days=7)
+        form = FoodItemForm(initial={'expiry_date': initial_date})
     
     context = {
         'page_title': 'Add Food Item',
         'form': form,
     }
     return render(request, 'inventory/add_item.html', context)
+
 
 @login_required
 def edit_item(request, item_id):
@@ -449,6 +279,8 @@ def edit_item(request, item_id):
             
             messages.success(request, f'"{updated_item.name}" updated successfully!')
             return redirect('inventory_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = FoodItemForm(instance=item)
     
@@ -458,6 +290,7 @@ def edit_item(request, item_id):
         'item': item,
     }
     return render(request, 'inventory/edit_item.html', context)
+
 
 @login_required
 def delete_item(request, item_id):
@@ -477,98 +310,100 @@ def delete_item(request, item_id):
     }
     return render(request, 'inventory/delete_item.html', context)
 
+
 @login_required
 def delete_item_ajax(request, item_id):
     """AJAX endpoint for deleting items"""
-    if request.method == 'DELETE' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         item = get_object_or_404(FoodItem, id=item_id, user=request.user)
+        item_name = item.name
         item.delete()
-        return JsonResponse({'success': True, 'message': 'Item deleted successfully'})
+        return JsonResponse({
+            'success': True, 
+            'message': f'"{item_name}" has been deleted successfully.'
+        })
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
 
 @login_required
 def recipes(request):
     """Recipe suggestions page"""
     user_items = FoodItem.objects.filter(user=request.user)
+    total_items = user_items.count()
     
-    # Get recipe suggestions from API only
-    recipe_data = get_recipe_suggestions(user_items)
+    if total_items == 0:
+        # No items in inventory
+        recipe_data = {
+            'error': 'No food items in your inventory. Add some items to get recipe suggestions.',
+            'recipes': []
+        }
+    else:
+        # Get recipe suggestions from API
+        recipe_data = get_recipe_suggestions(user_items)
     
     context = {
         'page_title': 'Recipe Suggestions',
         'recipe_data': recipe_data,
-        'user_items': user_items,
-        'total_items': user_items.count(),
+        'total_items': total_items,
     }
+    # FIXED: Changed from 'recipe/list.py' to 'recipes/list.html'
     return render(request, 'recipes/list.html', context)
+
 
 @login_required
 def recipe_detail(request, recipe_id):
-    """Detailed recipe view using Spoonacular API"""
-    # Check cache first
-    cache_key = f"recipe_detail_full_{recipe_id}"
-    recipe_data = cache.get(cache_key)
+    """Detailed recipe view"""
+    # Get user's inventory for ingredient matching
+    user_items = FoodItem.objects.filter(user=request.user)
+    user_ingredients = [item.name.lower() for item in user_items]
     
-    if not recipe_data:
-        # Fetch recipe details from Spoonacular
-        from .api_utils import get_recipe_details
-        recipe_data = get_recipe_details(recipe_id)
+    # Get recipe details
+    recipe = get_recipe_details(recipe_id)
+    
+    if not recipe:
+        return render(request, 'recipes/detail.html', {
+            'recipe': {'error': 'Recipe not found or could not be loaded.'}
+        })
+    
+    # Check which ingredients the user has using SMART matching
+    if 'ingredients' in recipe or 'extendedIngredients' in recipe:
+        ingredients = recipe.get('ingredients') or recipe.get('extendedIngredients', [])
+        total_ingredients = len(ingredients)
+        has_count = 0
         
-        if recipe_data and 'error' not in recipe_data:
-            # Get user's inventory items for comparison
-            user_items = FoodItem.objects.filter(user=request.user)
-            user_ingredients = [item.name.lower() for item in user_items]
+        for ingredient in ingredients:
+            ingredient_name = ingredient.get('name', '').lower()
+            ingredient_has_it = False
             
-            # Smart ingredient matching - check quantity availability
-            from .api_utils import check_ingredient_match
+            # Check if user has this ingredient using SMART matching
+            for user_ing in user_ingredients:
+                if check_ingredient_match(user_ing, ingredient_name):
+                    ingredient_has_it = True
+                    break
             
-            # Handle both formats: ingredients list or extendedIngredients
-            ingredients_list = recipe_data.get('ingredients') or recipe_data.get('extendedIngredients', [])
+            ingredient['has_it'] = ingredient_has_it
             
-            if ingredients_list:
-                matched_count = 0
-                for ingredient in ingredients_list:
-                    ingredient_name = ingredient.get('name', '').lower()
-                    
-                    # Check if user has this ingredient (any quantity)
-                    has_ingredient = False
-                    for user_ing in user_ingredients:
-                        if check_ingredient_match(user_ing, ingredient_name):
-                            has_ingredient = True
-                            break
-                    
-                    ingredient['has_it'] = has_ingredient
-                    if has_ingredient:
-                        matched_count += 1
-                
-                # Calculate match percentage
-                total_count = len(ingredients_list)
-                recipe_data['has_count'] = matched_count
-                recipe_data['total_count'] = total_count
-                recipe_data['ingredients_percentage'] = int((matched_count / total_count * 100)) if total_count > 0 else 0
-                
-                # Determine recipe feasibility
-                if matched_count >= total_count * 0.7:
-                    recipe_data['feasibility'] = 'high'
-                    recipe_data['feasibility_text'] = 'You have most ingredients!'
-                elif matched_count >= total_count * 0.4:
-                    recipe_data['feasibility'] = 'medium'
-                    recipe_data['feasibility_text'] = 'You have some ingredients'
-                else:
-                    recipe_data['feasibility'] = 'low'
-                    recipe_data['feasibility_text'] = 'You need to shop for most ingredients'
+            if ingredient_has_it:
+                has_count += 1
+        
+        # Calculate match percentage
+        if total_ingredients > 0:
+            match_percentage = int((has_count / total_ingredients) * 100)
             
-            recipe_data['cached'] = False
-            # Cache for 12 hours
-            cache.set(cache_key, recipe_data, 43200)
-        else:
-            recipe_data = {'error': 'Recipe not found or API error'}
-    else:
-        recipe_data['cached'] = True
+            # Determine feasibility
+            if match_percentage >= 80:
+                recipe['feasibility'] = 'high'
+                recipe['feasibility_text'] = 'You have most ingredients!'
+            elif match_percentage >= 50:
+                recipe['feasibility'] = 'medium'
+                recipe['feasibility_text'] = 'You have many ingredients'
+            else:
+                recipe['feasibility'] = 'low'
+                recipe['feasibility_text'] = 'You need several ingredients'
+            
+            recipe['ingredients_percentage'] = match_percentage
+            recipe['has_count'] = has_count
+            recipe['total_count'] = total_ingredients
     
-    context = {
-        'page_title': recipe_data.get('title', 'Recipe Details') if isinstance(recipe_data, dict) else 'Recipe Details',
-        'recipe': recipe_data if isinstance(recipe_data, dict) else {},
-        'recipe_id': recipe_id,
-    }
-    return render(request, 'recipes/detail.html', context)
+    # FIXED: Changed from 'details.py' to 'recipes/detail.html'
+    return render(request, 'recipes/detail.html', {'recipe': recipe})
