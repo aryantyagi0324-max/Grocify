@@ -2,9 +2,351 @@
 
 {% block title %}Add Item - Grocify{% endblock %}
 
+{% block extra_css %}
+<style>
+    .category-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 25px;
+        padding: 15px;
+        background-color: var(--bg-card);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+    }
+    
+    .category-tab {
+        padding: 12px 20px;
+        background-color: var(--bg-input);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-secondary);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 150px;
+        max-width: 200px;
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .category-tab:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        transform: translateY(-2px);
+    }
+    
+    .category-tab.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .category-icon {
+        font-size: 1.1rem;
+    }
+    
+    .suggestions-container {
+        margin-bottom: 25px;
+        display: none;
+    }
+    
+    .suggestions-container.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .suggestions-title {
+        color: var(--text-primary);
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .suggestions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    
+    .suggestion-item {
+        padding: 14px;
+        background-color: var(--bg-input);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .suggestion-item:hover {
+        background-color: rgba(74, 111, 165, 0.05);
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .suggestion-icon {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+    }
+    
+    .suggestion-name {
+        font-weight: 500;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+    }
+    
+    .autocomplete-container {
+        position: relative;
+        margin-bottom: 25px;
+    }
+    
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: var(--shadow-lg);
+        display: none;
+    }
+    
+    .autocomplete-dropdown.active {
+        display: block;
+        animation: slideDown 0.2s ease;
+    }
+    
+    .autocomplete-item {
+        padding: 12px 15px;
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    .autocomplete-item:hover {
+        background-color: rgba(74, 111, 165, 0.05);
+    }
+    
+    .autocomplete-icon {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        width: 20px;
+        text-align: center;
+    }
+    
+    .autocomplete-text {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    
+    .autocomplete-category {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-left: auto;
+        background-color: rgba(74, 111, 165, 0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+    
+    .form-section {
+        background-color: var(--bg-card);
+        border-radius: var(--radius-lg);
+        padding: 25px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 25px;
+    }
+    
+    .form-section-title {
+        color: var(--text-primary);
+        margin-bottom: 20px;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .form-section-title i {
+        color: var(--primary-color);
+    }
+    
+    .selected-item-preview {
+        background-color: rgba(74, 111, 165, 0.05);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        margin-bottom: 25px;
+        border: 1px solid rgba(74, 111, 165, 0.1);
+        display: none;
+    }
+    
+    .selected-item-preview.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .preview-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .preview-icon {
+        font-size: 2rem;
+        color: var(--primary-color);
+        background-color: rgba(74, 111, 165, 0.1);
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .preview-details h4 {
+        color: var(--text-primary);
+        margin-bottom: 5px;
+        font-size: 1.25rem;
+    }
+    
+    .preview-details p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin: 0;
+    }
+    
+    .preview-badge {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-left: auto;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideDown {
+        from { 
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .manual-input-note {
+        background-color: rgba(237, 137, 54, 0.1);
+        border-left: 4px solid var(--warning-color);
+        padding: 12px 15px;
+        border-radius: var(--radius-md);
+        margin-top: 15px;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        display: none;
+    }
+    
+    .manual-input-note.active {
+        display: block;
+    }
+    
+    .category-icon-large {
+        font-size: 1.3rem;
+    }
+    
+    .form-errors {
+        background-color: rgba(229, 62, 62, 0.1);
+        border-left: 4px solid var(--danger-color);
+        padding: 15px;
+        border-radius: var(--radius-md);
+        margin-bottom: 25px;
+        display: none;
+    }
+    
+    .form-errors.active {
+        display: block;
+    }
+    
+    .error-list {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .error-list li {
+        color: var(--danger-color);
+        margin-bottom: 5px;
+    }
+    
+    .success-message {
+        display: none;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: var(--success-color);
+        color: white;
+        padding: 15px 25px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        z-index: 10000;
+        animation: slideInRight 0.3s ease;
+    }
+    
+    .success-message.active {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col" style="max-width: 600px; margin: 0 auto;">
+    <div class="col" style="max-width: 800px; margin: 0 auto;">
+        <!-- Success Message (Hidden by default) -->
+        <div class="success-message" id="successMessage">
+            <i class="fas fa-check-circle"></i>
+            <span>Item added successfully! Redirecting...</span>
+        </div>
+        
         <!-- Form Card -->
         <div class="card">
             <div class="card-header">
@@ -21,15 +363,119 @@
                     </a>
                 </div>
                 
-                <!-- Form -->
-                <form method="POST" action="{% url 'add_item' %}">
+                <!-- Display Django form errors -->
+                {% if form.errors %}
+                <div class="form-errors active">
+                    <h4 class="mb-2" style="color: var(--danger-color);">
+                        <i class="fas fa-exclamation-triangle"></i> Please fix the following errors:
+                    </h4>
+                    <ul class="error-list">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- JavaScript Form Errors Display -->
+                <div class="form-errors" id="jsFormErrors">
+                    <h4 class="mb-2" style="color: var(--danger-color);">
+                        <i class="fas fa-exclamation-triangle"></i> Please fix the following errors:
+                    </h4>
+                    <ul class="error-list" id="jsErrorList">
+                        <!-- Errors will be populated by JavaScript -->
+                    </ul>
+                </div>
+                
+                <!-- Category Selection -->
+                <div class="form-section">
+                    <h3 class="form-section-title">
+                        <i class="fas fa-tags"></i> Select Category
+                    </h3>
+                    
+                    <div class="category-tabs">
+                        {% for value, label in form.category.field.choices %}
+                            {% if value %}
+                            <div class="category-tab" data-category="{{ value }}">
+                                <i class="fas fa-{{ value|cut:' ' }} category-icon"></i>
+                                <span>{{ label }}</span>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    <input type="hidden" id="selected_category" name="category" value="">
+                </div>
+                
+                <!-- Selected Category Preview -->
+                <div class="selected-item-preview" id="categoryPreview">
+                    <div class="preview-header">
+                        <div class="preview-icon">
+                            <i class="fas" id="previewIcon"></i>
+                        </div>
+                        <div class="preview-details">
+                            <h4 id="previewCategory">Select a category</h4>
+                            <p id="previewDescription">Choose a category to see food suggestions</p>
+                        </div>
+                        <div class="preview-badge" id="previewBadge">Category</div>
+                    </div>
+                </div>
+                
+                <!-- Item Selection -->
+                <div class="form-section">
+                    <h3 class="form-section-title">
+                        <i class="fas fa-search"></i> Find or Add Item
+                    </h3>
+                    
+                    <!-- Category-based Suggestions -->
+                    <div class="suggestions-container" id="categorySuggestions">
+                        <h4 class="suggestions-title">Popular Items in this Category</h4>
+                        <div class="suggestions-grid" id="suggestionsGrid">
+                            <!-- Suggestions will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Search Input -->
+                    <div class="form-group">
+                        <label class="form-label" for="itemSearch">
+                            <i class="fas fa-search"></i> Search or Type Item Name
+                        </label>
+                        <div class="autocomplete-container">
+                            <input type="text" 
+                                   id="itemSearch" 
+                                   class="form-control" 
+                                   placeholder="Start typing to search food items..."
+                                   autocomplete="off">
+                            <div class="autocomplete-dropdown" id="autocompleteDropdown">
+                                <!-- Autocomplete items will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Type to search from our database or enter a custom item
+                        </small>
+                    </div>
+                    
+                    <!-- Manual Input Note -->
+                    <div class="manual-input-note" id="manualInputNote">
+                        <i class="fas fa-edit"></i> 
+                        <strong>Custom Item:</strong> You're adding a custom item. Make sure to enter accurate details.
+                    </div>
+                </div>
+                
+                <!-- Main Form (Rest of the form) -->
+                <form method="POST" action="{% url 'add_item' %}" id="addItemForm">
                     {% csrf_token %}
                     
-                    <!-- Name Field -->
-                    <div class="form-group">
-                        <label class="form-label" for="id_name">
-                            <i class="fas fa-tag"></i> Item Name
-                        </label>
+                    <!-- Hidden category field - this is the actual form field Django will read -->
+                    <input type="hidden" id="id_category" name="category" value="{{ form.category.value|default:'' }}">
+                    
+                    <!-- Name Field - this is the actual form field Django will read -->
+                    <div class="form-group" style="display: none;">
                         {{ form.name }}
                         {% if form.name.errors %}
                         <div class="alert alert-danger mt-1">
@@ -37,83 +483,76 @@
                             {{ form.name.errors }}
                         </div>
                         {% endif %}
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Example: Milk, Bread, Apples
-                        </small>
                     </div>
                     
                     <!-- Quantity & Unit -->
-                    <div class="row">
-                        <div class="col">
-                            <div class="form-group">
-                                <label class="form-label" for="id_quantity">
-                                    <i class="fas fa-balance-scale"></i> Quantity
-                                </label>
-                                {{ form.quantity }}
-                                {% if form.quantity.errors %}
-                                <div class="alert alert-danger mt-1">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                    {{ form.quantity.errors }}
+                    <div class="form-section">
+                        <h3 class="form-section-title">
+                            <i class="fas fa-balance-scale"></i> Quantity & Measurement
+                        </h3>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label class="form-label" for="id_quantity">
+                                        <i class="fas fa-hashtag"></i> Quantity
+                                    </label>
+                                    {{ form.quantity }}
+                                    {% if form.quantity.errors %}
+                                    <div class="alert alert-danger mt-1">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.quantity.errors }}
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
+                            </div>
+                            
+                            <div class="col">
+                                <div class="form-group">
+                                    <label class="form-label" for="id_unit">
+                                        <i class="fas fa-weight"></i> Unit
+                                    </label>
+                                    {{ form.unit }}
+                                    {% if form.unit.errors %}
+                                    <div class="alert alert-danger mt-1">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.unit.errors }}
+                                    </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle"></i> kg, liters, pieces, etc.
+                                    </small>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="col">
-                            <div class="form-group">
-                                <label class="form-label" for="id_unit">
-                                    <i class="fas fa-weight"></i> Unit
-                                </label>
-                                {{ form.unit }}
-                                {% if form.unit.errors %}
-                                <div class="alert alert-danger mt-1">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                    {{ form.unit.errors }}
-                                </div>
-                                {% endif %}
-                                <small class="form-text text-muted">
-                                    <i class="fas fa-info-circle"></i> kg, liters, pieces, etc.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Category -->
-                    <div class="form-group">
-                        <label class="form-label" for="id_category">
-                            <i class="fas fa-tags"></i> Category
-                        </label>
-                        {{ form.category }}
-                        {% if form.category.errors %}
-                        <div class="alert alert-danger mt-1">
-                            <i class="fas fa-exclamation-circle"></i>
-                            {{ form.category.errors }}
-                        </div>
-                        {% endif %}
                     </div>
                     
                     <!-- Expiry Date -->
-                    <div class="form-group">
-                        <label class="form-label" for="id_expiry_date">
+                    <div class="form-section">
+                        <h3 class="form-section-title">
                             <i class="fas fa-calendar-alt"></i> Expiry Date
-                        </label>
-                        {{ form.expiry_date }}
-                        {% if form.expiry_date.errors %}
-                        <div class="alert alert-danger mt-1">
-                            <i class="fas fa-exclamation-circle"></i>
-                            {{ form.expiry_date.errors }}
+                        </h3>
+                        <div class="form-group">
+                            <label class="form-label" for="id_expiry_date">
+                                <i class="fas fa-clock"></i> When does it expire?
+                            </label>
+                            {{ form.expiry_date }}
+                            {% if form.expiry_date.errors %}
+                            <div class="alert alert-danger mt-1">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ form.expiry_date.errors }}
+                            </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Click to open calendar picker
+                            </small>
                         </div>
-                        {% endif %}
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Click to open calendar picker
-                        </small>
                     </div>
                     
                     <!-- Form Actions -->
                     <div class="form-group mt-4">
                         <div class="row">
                             <div class="col">
-                                <button type="submit" class="btn btn-primary w-100">
+                                <button type="submit" class="btn btn-primary w-100" id="submitButton" disabled>
                                     <i class="fas fa-save"></i> Add to Inventory
                                 </button>
                             </div>
@@ -138,8 +577,8 @@
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div>
-                                    <strong>Be Specific</strong>
-                                    <p class="small mb-0">"Greek Yogurt" vs "Yogurt"</p>
+                                    <strong>Choose Category First</strong>
+                                    <p class="small mb-0">Select category to see relevant suggestions</p>
                                 </div>
                             </div>
                         </div>
@@ -149,8 +588,8 @@
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div>
-                                    <strong>Check Dates</strong>
-                                    <p class="small mb-0">Set accurate expiry dates</p>
+                                    <strong>Use Suggestions</strong>
+                                    <p class="small mb-0">Click on suggestions for quick selection</p>
                                 </div>
                             </div>
                         </div>
@@ -160,8 +599,8 @@
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div>
-                                    <strong>Use Units</strong>
-                                    <p class="small mb-0">kg, liters, pieces, etc.</p>
+                                    <strong>Type to Search</strong>
+                                    <p class="small mb-0">Search across all categories</p>
                                 </div>
                             </div>
                         </div>
@@ -171,8 +610,8 @@
                                     <i class="fas fa-check-circle"></i>
                                 </div>
                                 <div>
-                                    <strong>Categorize</strong>
-                                    <p class="small mb-0">Helps with filtering</p>
+                                    <strong>Custom Items</strong>
+                                    <p class="small mb-0">Add items not in our database</p>
                                 </div>
                             </div>
                         </div>
@@ -204,19 +643,551 @@
     </div>
 </div>
 
-<!-- JavaScript for date picker -->
+<!-- JavaScript for enhanced item selection -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Set minimum date to today for expiry date
-        const expiryDateField = document.querySelector('input[type="date"]');
-        if (expiryDateField) {
-            const today = new Date().toISOString().split('T')[0];
-            expiryDateField.min = today;
+    // Food database with categories
+    const foodDatabase = {
+        'fruit': [
+            'Apples', 'Bananas', 'Oranges', 'Grapes', 'Strawberries', 'Blueberries', 
+            'Mangoes', 'Pineapple', 'Watermelon', 'Kiwi', 'Peaches', 'Pears',
+            'Cherries', 'Raspberries', 'Lemons', 'Limes', 'Papaya', 'Guava'
+        ],
+        'vegetable': [
+            'Carrots', 'Broccoli', 'Spinach', 'Lettuce', 'Tomatoes', 'Potatoes',
+            'Onions', 'Garlic', 'Bell Peppers', 'Cucumbers', 'Zucchini', 'Eggplant',
+            'Cabbage', 'Cauliflower', 'Green Beans', 'Peas', 'Corn', 'Mushrooms'
+        ],
+        'dairy': [
+            'Milk', 'Cheese', 'Yogurt', 'Butter', 'Cream', 'Paneer', 'Cottage Cheese',
+            'Sour Cream', 'Whipping Cream', 'Condensed Milk', 'Mozzarella', 'Cheddar',
+            'Gouda', 'Feta', 'Ricotta', 'Buttermilk', 'Ice Cream', 'Greek Yogurt'
+        ],
+        'meat': [
+            'Chicken', 'Beef', 'Pork', 'Lamb', 'Turkey', 'Bacon', 'Sausages',
+            'Ham', 'Chicken Breast', 'Chicken Thighs', 'Ground Beef', 'Steak',
+            'Pork Chops', 'Mutton', 'Duck', 'Quail', 'Venison', 'Rabbit'
+        ],
+        'grain': [
+            'Rice', 'Wheat Flour', 'Oats', 'Pasta', 'Bread', 'Quinoa', 'Barley',
+            'Cornmeal', 'Couscous', 'Buckwheat', 'Millet', 'Rye', 'Spaghetti',
+            'Macaroni', 'Noodles', 'Basmati Rice', 'Brown Rice', 'White Rice'
+        ],
+        'canned': [
+            'Canned Tomatoes', 'Canned Beans', 'Canned Corn', 'Canned Tuna',
+            'Canned Soup', 'Canned Peas', 'Canned Carrots', 'Canned Pineapple',
+            'Canned Peaches', 'Canned Mushrooms', 'Canned Olives', 'Canned Sardines',
+            'Canned Chicken', 'Canned Beef', 'Canned Fruit Cocktail'
+        ],
+        'beverage': [
+            'Water', 'Juice', 'Soda', 'Tea', 'Coffee', 'Milk', 'Energy Drink',
+            'Sports Drink', 'Wine', 'Beer', 'Whiskey', 'Vodka', 'Rum', 'Gin',
+            'Orange Juice', 'Apple Juice', 'Grape Juice', 'Lemonade'
+        ],
+        'snack': [
+            'Chips', 'Cookies', 'Chocolate', 'Candy', 'Nuts', 'Popcorn', 'Crackers',
+            'Pretzels', 'Granola Bars', 'Protein Bars', 'Trail Mix', 'Dried Fruit',
+            'Beef Jerky', 'Peanuts', 'Almonds', 'Cashews', 'Walnuts', 'Pistachios'
+        ],
+        'spice': [
+            'Salt', 'Pepper', 'Turmeric', 'Cumin', 'Coriander', 'Chili Powder',
+            'Garlic Powder', 'Onion Powder', 'Paprika', 'Cinnamon', 'Nutmeg',
+            'Cloves', 'Cardamom', 'Bay Leaves', 'Oregano', 'Thyme', 'Rosemary',
+            'Basil', 'Parsley', 'Ginger', 'Mustard Seeds', 'Fennel Seeds'
+        ],
+        'other': [
+            'Eggs', 'Honey', 'Jam', 'Ketchup', 'Mayonnaise', 'Mustard', 'Soy Sauce',
+            'Vinegar', 'Oil', 'Sugar', 'Flour', 'Baking Powder', 'Baking Soda',
+            'Yeast', 'Vanilla Extract', 'Cocoa Powder', 'Food Coloring', 'Gelatin'
+        ]
+    };
+
+    // Category icons mapping
+    const categoryIcons = {
+        'fruit': 'fa-apple-alt',
+        'vegetable': 'fa-carrot',
+        'dairy': 'fa-cheese',
+        'meat': 'fa-drumstick-bite',
+        'grain': 'fa-bread-slice',
+        'canned': 'fa-can',
+        'beverage': 'fa-wine-bottle',
+        'snack': 'fa-cookie-bite',
+        'spice': 'fa-mortar-pestle',
+        'other': 'fa-box'
+    };
+
+    // Category descriptions
+    const categoryDescriptions = {
+        'fruit': 'Fresh fruits and berries',
+        'vegetable': 'Fresh vegetables and greens',
+        'dairy': 'Milk, cheese, yogurt and dairy products',
+        'meat': 'Meat, poultry and seafood',
+        'grain': 'Grains, flour, pasta and bread',
+        'canned': 'Canned and preserved foods',
+        'beverage': 'Drinks and beverages',
+        'snack': 'Snacks and quick bites',
+        'spice': 'Spices, herbs and condiments',
+        'other': 'Other food items and ingredients'
+    };
+
+    // Unit suggestions based on category
+    const unitSuggestions = {
+        'fruit': ['kg', 'grams', 'pieces', 'bunch'],
+        'vegetable': ['kg', 'grams', 'pieces', 'bunch'],
+        'dairy': ['liters', 'ml', 'grams', 'pieces', 'pack'],
+        'meat': ['kg', 'grams', 'pieces'],
+        'grain': ['kg', 'grams', 'cups', 'pack'],
+        'canned': ['cans', 'pieces', 'grams'],
+        'beverage': ['liters', 'ml', 'bottles', 'cans'],
+        'snack': ['grams', 'pack', 'pieces', 'box'],
+        'spice': ['grams', 'tsp', 'tbsp', 'pack'],
+        'other': ['kg', 'grams', 'liters', 'ml', 'pieces']
+    };
+
+    // DOM Elements
+    const categoryTabs = document.querySelectorAll('.category-tab');
+    const categorySuggestions = document.getElementById('categorySuggestions');
+    const suggestionsGrid = document.getElementById('suggestionsGrid');
+    const itemSearch = document.getElementById('itemSearch');
+    const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+    const categoryPreview = document.getElementById('categoryPreview');
+    const previewIcon = document.getElementById('previewIcon');
+    const previewCategory = document.getElementById('previewCategory');
+    const previewDescription = document.getElementById('previewDescription');
+    const previewBadge = document.getElementById('previewBadge');
+    const manualInputNote = document.getElementById('manualInputNote');
+    const jsFormErrors = document.getElementById('jsFormErrors');
+    const jsErrorList = document.getElementById('jsErrorList');
+    const submitButton = document.getElementById('submitButton');
+    const addItemForm = document.getElementById('addItemForm');
+    const successMessage = document.getElementById('successMessage');
+    
+    // Django form fields
+    const categoryField = document.getElementById('id_category');
+    const nameField = document.getElementById('id_name');
+    const unitField = document.getElementById('id_unit');
+    const expiryDateField = document.getElementById('id_expiry_date');
+    const quantityField = document.getElementById('id_quantity');
+
+    let selectedCategory = '';
+    let selectedItem = '';
+    let isManualInput = false;
+
+    // Initialize category tabs
+    categoryTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Remove active class from all tabs
+            categoryTabs.forEach(t => t.classList.remove('active'));
             
-            // Add date picker styling
-            expiryDateField.style.cursor = 'pointer';
+            // Add active class to clicked tab
+            this.classList.add('active');
+            
+            // Get selected category
+            selectedCategory = this.dataset.category;
+            
+            // Update Django form field
+            categoryField.value = selectedCategory;
+            
+            // Update category preview
+            updateCategoryPreview(selectedCategory);
+            
+            // Show category suggestions
+            showCategorySuggestions(selectedCategory);
+            
+            // Show suggestions container
+            categorySuggestions.classList.add('active');
+            
+            // Clear search input
+            itemSearch.value = '';
+            selectedItem = '';
+            isManualInput = false;
+            manualInputNote.classList.remove('active');
+            updateSubmitButton();
+            
+            // Update unit field placeholder with suggestions
+            updateUnitSuggestions(selectedCategory);
+            
+            // Clear any errors
+            clearFormErrors();
+        });
+    });
+
+    // Update category preview
+    function updateCategoryPreview(category) {
+        const categoryLabel = Array.from(categoryTabs)
+            .find(tab => tab.dataset.category === category)
+            .querySelector('span').textContent;
+        
+        previewIcon.className = `fas ${categoryIcons[category] || 'fa-box'} category-icon-large`;
+        previewCategory.textContent = categoryLabel;
+        previewDescription.textContent = categoryDescriptions[category] || 'Food items';
+        previewBadge.textContent = 'Category Selected';
+        
+        categoryPreview.classList.add('active');
+    }
+
+    // Show category-based suggestions
+    function showCategorySuggestions(category) {
+        const items = foodDatabase[category] || [];
+        
+        // Clear previous suggestions
+        suggestionsGrid.innerHTML = '';
+        
+        // Add new suggestions
+        items.slice(0, 12).forEach(item => {
+            const suggestion = document.createElement('div');
+            suggestion.className = 'suggestion-item';
+            suggestion.innerHTML = `
+                <i class="fas ${getItemIcon(item, category)} suggestion-icon"></i>
+                <span class="suggestion-name">${item}</span>
+            `;
+            
+            suggestion.addEventListener('click', function() {
+                selectItem(item, category);
+            });
+            
+            suggestionsGrid.appendChild(suggestion);
+        });
+    }
+
+    // Get appropriate icon for item
+    function getItemIcon(item, category) {
+        const itemLower = item.toLowerCase();
+        
+        if (itemLower.includes('milk') || itemLower.includes('cream')) return 'fa-wine-bottle';
+        if (itemLower.includes('cheese')) return 'fa-cheese';
+        if (itemLower.includes('bread')) return 'fa-bread-slice';
+        if (itemLower.includes('egg')) return 'fa-egg';
+        if (itemLower.includes('chicken') || itemLower.includes('meat')) return 'fa-drumstick-bite';
+        if (itemLower.includes('fish')) return 'fa-fish';
+        if (itemLower.includes('fruit') || itemLower.includes('apple') || itemLower.includes('banana')) return 'fa-apple-alt';
+        if (itemLower.includes('vegetable') || itemLower.includes('carrot') || itemLower.includes('broccoli')) return 'fa-carrot';
+        if (itemLower.includes('rice') || itemLower.includes('pasta')) return 'fa-utensils';
+        if (itemLower.includes('water') || itemLower.includes('juice')) return 'fa-glass-whiskey';
+        
+        return categoryIcons[category] || 'fa-box';
+    }
+
+    // Select item from suggestions
+    function selectItem(item, category) {
+        selectedItem = item;
+        isManualInput = false;
+        
+        // Update search input
+        itemSearch.value = item;
+        
+        // Update Django form field
+        nameField.value = item;
+        
+        // Hide autocomplete dropdown
+        autocompleteDropdown.classList.remove('active');
+        
+        // Hide manual input note
+        manualInputNote.classList.remove('active');
+        
+        // Update category if different
+        if (selectedCategory !== category) {
+            selectedCategory = category;
+            categoryField.value = category;
+            updateCategoryPreview(category);
+            showCategorySuggestions(category);
+            updateUnitSuggestions(category);
+            
+            // Activate the correct tab
+            categoryTabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.category === category) {
+                    tab.classList.add('active');
+                }
+            });
         }
         
+        // Update submit button
+        updateSubmitButton();
+        
+        // Clear any errors
+        clearFormErrors();
+        
+        // Focus on quantity field
+        setTimeout(() => {
+            quantityField.focus();
+        }, 100);
+    }
+
+    // Update unit suggestions
+    function updateUnitSuggestions(category) {
+        const suggestions = unitSuggestions[category] || ['kg', 'grams', 'liters', 'pieces'];
+        unitField.placeholder = `e.g., ${suggestions.join(', ')}`;
+    }
+
+    // Search input event listeners
+    itemSearch.addEventListener('input', function() {
+        const searchTerm = this.value.trim();
+        
+        if (searchTerm.length === 0) {
+            autocompleteDropdown.classList.remove('active');
+            selectedItem = '';
+            isManualInput = false;
+            manualInputNote.classList.remove('active');
+            updateSubmitButton();
+            clearFormErrors();
+            return;
+        }
+        
+        if (searchTerm.length < 2) {
+            autocompleteDropdown.classList.remove('active');
+            return;
+        }
+        
+        // Show autocomplete results
+        showAutocompleteResults(searchTerm);
+    });
+
+    itemSearch.addEventListener('focus', function() {
+        const searchTerm = this.value.trim();
+        if (searchTerm.length >= 2) {
+            showAutocompleteResults(searchTerm);
+        }
+    });
+
+    // Close autocomplete when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!itemSearch.contains(event.target) && !autocompleteDropdown.contains(event.target)) {
+            autocompleteDropdown.classList.remove('active');
+        }
+    });
+
+    // Show autocomplete results
+    function showAutocompleteResults(searchTerm) {
+        const results = [];
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Search across all categories
+        Object.keys(foodDatabase).forEach(category => {
+            foodDatabase[category].forEach(item => {
+                if (item.toLowerCase().includes(searchLower)) {
+                    results.push({
+                        item: item,
+                        category: category
+                    });
+                }
+            });
+        });
+        
+        // Sort by relevance (exact match first)
+        results.sort((a, b) => {
+            const aMatch = a.item.toLowerCase().startsWith(searchLower);
+            const bMatch = b.item.toLowerCase().startsWith(searchLower);
+            if (aMatch && !bMatch) return -1;
+            if (!aMatch && bMatch) return 1;
+            return a.item.localeCompare(b.item);
+        });
+        
+        // Display results
+        displayAutocompleteResults(results.slice(0, 10), searchTerm);
+    }
+
+    // Display autocomplete results
+    function displayAutocompleteResults(results, searchTerm) {
+        autocompleteDropdown.innerHTML = '';
+        
+        if (results.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'autocomplete-item';
+            noResults.innerHTML = `
+                <i class="fas fa-plus autocomplete-icon"></i>
+                <span class="autocomplete-text">Add "${searchTerm}" as custom item</span>
+                <span class="autocomplete-category">Custom</span>
+            `;
+            noResults.addEventListener('click', function() {
+                selectCustomItem(searchTerm);
+            });
+            autocompleteDropdown.appendChild(noResults);
+        } else {
+            results.forEach(result => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'autocomplete-item';
+                itemElement.innerHTML = `
+                    <i class="fas ${getItemIcon(result.item, result.category)} autocomplete-icon"></i>
+                    <span class="autocomplete-text">${result.item}</span>
+                    <span class="autocomplete-category">${result.category}</span>
+                `;
+                
+                itemElement.addEventListener('click', function() {
+                    selectItem(result.item, result.category);
+                });
+                
+                autocompleteDropdown.appendChild(itemElement);
+            });
+        }
+        
+        autocompleteDropdown.classList.add('active');
+    }
+
+    // Select custom item
+    function selectCustomItem(item) {
+        selectedItem = item;
+        isManualInput = true;
+        
+        // Update search input
+        itemSearch.value = item;
+        
+        // Update Django form field
+        nameField.value = item;
+        
+        // Hide autocomplete dropdown
+        autocompleteDropdown.classList.remove('active');
+        
+        // Show manual input note
+        manualInputNote.classList.add('active');
+        
+        // If no category selected, default to 'other'
+        if (!selectedCategory) {
+            selectedCategory = 'other';
+            categoryField.value = 'other';
+            updateCategoryPreview('other');
+            showCategorySuggestions('other');
+            updateUnitSuggestions('other');
+            
+            // Activate 'other' tab
+            categoryTabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.category === 'other') {
+                    tab.classList.add('active');
+                }
+            });
+        }
+        
+        // Update submit button
+        updateSubmitButton();
+        
+        // Clear any errors
+        clearFormErrors();
+    }
+
+    // Update submit button state
+    function updateSubmitButton() {
+        const hasCategory = selectedCategory !== '';
+        const hasItem = selectedItem !== '';
+        
+        if (hasCategory && hasItem) {
+            submitButton.disabled = false;
+        } else {
+            submitButton.disabled = true;
+        }
+    }
+
+    // Clear form errors
+    function clearFormErrors() {
+        jsFormErrors.classList.remove('active');
+        jsErrorList.innerHTML = '';
+    }
+
+    // Show form errors
+    function showFormErrors(errors) {
+        jsFormErrors.classList.add('active');
+        jsErrorList.innerHTML = '';
+        
+        errors.forEach(error => {
+            const li = document.createElement('li');
+            li.textContent = error;
+            jsErrorList.appendChild(li);
+        });
+        
+        // Scroll to errors
+        jsFormErrors.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Form submission
+    addItemForm.addEventListener('submit', function(e) {
+        // Prevent default to validate first
+        e.preventDefault();
+        
+        const errors = validateForm();
+        
+        if (errors.length > 0) {
+            showFormErrors(errors);
+            return false;
+        }
+        
+        // Form is valid, ensure all fields are properly set
+        nameField.value = selectedItem;
+        categoryField.value = selectedCategory;
+        
+        // Show loading state
+        const originalText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+        
+        // Show success message
+        successMessage.classList.add('active');
+        
+        // Submit the form after a short delay to show feedback
+        setTimeout(() => {
+            // Submit the form normally
+            addItemForm.submit();
+        }, 1500);
+        
+        return false;
+    });
+
+    // Form validation
+    function validateForm() {
+        const errors = [];
+        
+        // Check category
+        if (!selectedCategory) {
+            errors.push('Please select a category');
+        }
+        
+        // Check item name
+        if (!selectedItem) {
+            errors.push('Please select or enter an item name');
+        } else if (selectedItem.trim().length < 2) {
+            errors.push('Item name must be at least 2 characters');
+        }
+        
+        // Check quantity
+        const quantity = parseFloat(quantityField.value);
+        if (!quantityField.value.trim()) {
+            errors.push('Please enter a quantity');
+        } else if (isNaN(quantity) || quantity <= 0) {
+            errors.push('Quantity must be a positive number');
+        } else if (quantity > 1000) {
+            errors.push('Quantity seems too high. Please check the value.');
+        }
+        
+        // Check unit
+        if (!unitField.value.trim()) {
+            errors.push('Please enter a unit (e.g., kg, liters, pieces)');
+        } else if (unitField.value.length > 20) {
+            errors.push('Unit name is too long');
+        }
+        
+        // Check expiry date
+        if (!expiryDateField.value) {
+            errors.push('Please select an expiry date');
+        } else {
+            const selectedDate = new Date(expiryDateField.value);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (selectedDate < today) {
+                errors.push('Expiry date cannot be in the past');
+            }
+            
+            // Check if date is too far in the future (5 years)
+            const maxDate = new Date();
+            maxDate.setFullYear(maxDate.getFullYear() + 5);
+            if (selectedDate > maxDate) {
+                errors.push('Expiry date cannot be more than 5 years in the future');
+            }
+        }
+        
+        return errors;
+    }
+
+    // Initialize form on load
+    document.addEventListener('DOMContentLoaded', function() {
         // Style form inputs
         const inputs = document.querySelectorAll('input, select');
         inputs.forEach(input => {
@@ -224,15 +1195,92 @@
             input.style.marginBottom = '0';
         });
         
-        // Add placeholders
-        const nameField = document.getElementById('id_name');
-        if (nameField) nameField.placeholder = 'Enter item name';
+        // Set minimum date to today for expiry date
+        if (expiryDateField) {
+            const today = new Date().toISOString().split('T')[0];
+            expiryDateField.min = today;
+            expiryDateField.style.cursor = 'pointer';
+            
+            // Set default to 7 days from today if empty
+            if (!expiryDateField.value) {
+                const nextWeek = new Date();
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                expiryDateField.value = nextWeek.toISOString().split('T')[0];
+            }
+        }
         
-        const quantityField = document.getElementById('id_quantity');
-        if (quantityField) quantityField.placeholder = 'Quantity';
+        // Set default quantity to 1 if empty
+        if (quantityField && !quantityField.value) {
+            quantityField.value = '1';
+        }
         
-        const unitField = document.getElementById('id_unit');
-        if (unitField) unitField.placeholder = 'Unit';
+        // Set default unit placeholder
+        if (unitField && !unitField.placeholder) {
+            unitField.placeholder = 'e.g., kg, liters, pieces';
+        }
+        
+        // Check if there are existing form values (from failed submission)
+        if (nameField && nameField.value) {
+            selectedItem = nameField.value;
+            itemSearch.value = nameField.value;
+        }
+        
+        if (categoryField && categoryField.value) {
+            selectedCategory = categoryField.value;
+            // Activate the correct tab
+            categoryTabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.category === selectedCategory) {
+                    tab.classList.add('active');
+                    updateCategoryPreview(selectedCategory);
+                    showCategorySuggestions(selectedCategory);
+                    updateUnitSuggestions(selectedCategory);
+                }
+            });
+        }
+        
+        // Update submit button based on existing values
+        updateSubmitButton();
+    });
+
+    // Add keyboard navigation for autocomplete
+    itemSearch.addEventListener('keydown', function(e) {
+        const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+        let currentIndex = -1;
+        
+        items.forEach((item, index) => {
+            if (item.classList.contains('active')) {
+                currentIndex = index;
+                item.classList.remove('active');
+            }
+        });
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentIndex = (currentIndex + 1) % items.length;
+            if (items[currentIndex]) {
+                items[currentIndex].classList.add('active');
+                items[currentIndex].scrollIntoView({ block: 'nearest' });
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentIndex = (currentIndex - 1 + items.length) % items.length;
+            if (items[currentIndex]) {
+                items[currentIndex].classList.add('active');
+                items[currentIndex].scrollIntoView({ block: 'nearest' });
+            }
+        } else if (e.key === 'Enter' && currentIndex >= 0 && items[currentIndex]) {
+            e.preventDefault();
+            items[currentIndex].click();
+        } else if (e.key === 'Enter' && !autocompleteDropdown.classList.contains('active')) {
+            // If enter pressed and no autocomplete, treat as custom item
+            if (itemSearch.value.trim().length >= 2) {
+                e.preventDefault();
+                selectCustomItem(itemSearch.value.trim());
+            }
+        } else if (e.key === 'Escape') {
+            autocompleteDropdown.classList.remove('active');
+        }
     });
 </script>
 
@@ -281,6 +1329,21 @@
     
     .mb-2 {
         margin-bottom: 0.5rem;
+    }
+    
+    .autocomplete-item.active {
+        background-color: rgba(74, 111, 165, 0.1);
+        border-left: 3px solid var(--primary-color);
+    }
+    
+    /* Ensure form fields are visible to Django */
+    #id_name {
+        display: block !important;
+        position: absolute;
+        opacity: 0;
+        height: 0;
+        width: 0;
+        pointer-events: none;
     }
 </style>
 {% endblock %}
