@@ -522,9 +522,12 @@ def recipe_detail(request, recipe_id):
             # Smart ingredient matching - check quantity availability
             from .api_utils import check_ingredient_match
             
-            if recipe_data.get('ingredients'):
+            # Handle both formats: ingredients list or extendedIngredients
+            ingredients_list = recipe_data.get('ingredients') or recipe_data.get('extendedIngredients', [])
+            
+            if ingredients_list:
                 matched_count = 0
-                for ingredient in recipe_data['ingredients']:
+                for ingredient in ingredients_list:
                     ingredient_name = ingredient.get('name', '').lower()
                     
                     # Check if user has this ingredient (any quantity)
@@ -539,7 +542,7 @@ def recipe_detail(request, recipe_id):
                         matched_count += 1
                 
                 # Calculate match percentage
-                total_count = len(recipe_data['ingredients'])
+                total_count = len(ingredients_list)
                 recipe_data['has_count'] = matched_count
                 recipe_data['total_count'] = total_count
                 recipe_data['ingredients_percentage'] = int((matched_count / total_count * 100)) if total_count > 0 else 0

@@ -315,46 +315,6 @@
         text-decoration: underline;
     }
     
-    /* Missing ingredients styles */
-    .missing-ingredients {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 1rem;
-    }
-    
-    .badge-danger {
-        background-color: var(--danger-color);
-        color: white;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-    }
-    
-    .mr-2 {
-        margin-right: 8px;
-    }
-    
-    .mb-2 {
-        margin-bottom: 8px;
-    }
-    
-    .d-block {
-        display: block;
-    }
-    
-    .mt-1 {
-        margin-top: 4px;
-    }
-    
-    .mt-2 {
-        margin-top: 8px;
-    }
-    
-    .mt-3 {
-        margin-top: 16px;
-    }
-    
     /* Nutrition info styles */
     .nutrition-grid {
         display: grid;
@@ -408,7 +368,11 @@
             <div class="recipe-header-content">
                 <h1 class="recipe-title">{{ recipe.title }}</h1>
                 <div class="recipe-category">
-                    {{ recipe.category }} • {{ recipe.area|default:"" }}
+                    {% if recipe.dishTypes %}
+                        {{ recipe.dishTypes.0 }}
+                    {% elif recipe.category %}
+                        {{ recipe.category }}
+                    {% endif %}
                     {% if recipe.cuisines %}
                         • {{ recipe.cuisines|join:", " }}
                     {% endif %}
@@ -416,19 +380,19 @@
                 
                 <div class="recipe-meta">
                     <div class="meta-item">
-                        <span class="meta-value">{{ recipe.ingredients|length }}</span>
+                        <span class="meta-value">{{ recipe.ingredients|length|default:0 }}</span>
                         <span class="meta-label">Ingredients</span>
                     </div>
                     <div class="meta-item">
-                        <span class="meta-value">{{ recipe.instruction_steps|length }}</span>
+                        <span class="meta-value">{{ recipe.instruction_steps|length|default:0 }}</span>
                         <span class="meta-label">Steps</span>
                     </div>
                     <div class="meta-item">
-                        <span class="meta-value">{{ recipe.readyInMinutes|default:recipe.cooking_time }}</span>
+                        <span class="meta-value">{{ recipe.readyInMinutes|default:45 }}</span>
                         <span class="meta-label">Minutes</span>
                     </div>
                     <div class="meta-item">
-                        <span class="meta-value">{{ recipe.has_count }}/{{ recipe.total_count }}</span>
+                        <span class="meta-value">{{ recipe.has_count|default:0 }}/{{ recipe.total_count|default:0 }}</span>
                         <span class="meta-label">You Have</span>
                     </div>
                 </div>
@@ -449,10 +413,13 @@
                             <i class="fas fa-check-circle"></i>
                         </div>
                         <div class="ingredient-text">
-                            <strong style="color: var(--success-color);">{{ ingredient.name }}</strong>
-                            {% if ingredient.amount %}
+                            <strong style="color: var(--success-color);">
+                                {{ ingredient.nameClean|default:ingredient.name }}
+                            </strong>
+                            {% if ingredient.original %}
                             <div class="ingredient-measure">
-                                <span class="text-success">✓ You have this</span> • {{ ingredient.amount }} {{ ingredient.unit|default:"" }}
+                                <span class="text-success">✓ You have this</span> • 
+                                {{ ingredient.original|truncatechars:30 }}
                             </div>
                             {% else %}
                             <div class="ingredient-measure text-success">
@@ -465,10 +432,11 @@
                             <i class="fas fa-times-circle"></i>
                         </div>
                         <div class="ingredient-text">
-                            <strong>{{ ingredient.name }}</strong>
-                            {% if ingredient.amount %}
+                            <strong>{{ ingredient.nameClean|default:ingredient.name }}</strong>
+                            {% if ingredient.original %}
                             <div class="ingredient-measure">
-                                <span class="text-danger">✗ Need to buy</span> • {{ ingredient.amount }} {{ ingredient.unit|default:"" }}
+                                <span class="text-danger">✗ Need to buy</span> • 
+                                {{ ingredient.original|truncatechars:30 }}
                             </div>
                             {% else %}
                             <div class="ingredient-measure text-danger">
@@ -482,6 +450,7 @@
                 </ul>
                 
                 <!-- Smart Match Analysis -->
+                {% if recipe.feasibility %}
                 <div class="inventory-status 
                     {% if recipe.feasibility == 'high' %}status-good
                     {% elif recipe.feasibility == 'medium' %}status-ok
@@ -498,46 +467,39 @@
                     </h3>
                     
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: {{ recipe.ingredients_percentage }}%;"></div>
+                        <div class="progress-fill" style="width: {{ recipe.ingredients_percentage|default:0 }}%;"></div>
                     </div>
                     
                     <p>
-                        You have <strong>{{ recipe.has_count }} out of {{ recipe.total_count }}</strong> ingredients
-                        ({{ recipe.ingredients_percentage }}% match)
+                        You have <strong>{{ recipe.has_count|default:0 }} out of {{ recipe.total_count|default:0 }}</strong> ingredients
+                        ({{ recipe.ingredients_percentage|default:0 }}% match)
                     </p>
                     
                     <p class="mb-0">
-                        <strong>{{ recipe.feasibility_text }}</strong>
+                        <strong>{{ recipe.feasibility_text|default:"Check your inventory" }}</strong>
                         {% if recipe.feasibility == 'high' %}
                             <span class="d-block mt-1">🎉 You can make this recipe right now!</span>
                         {% elif recipe.feasibility == 'medium' %}
                             <span class="d-block mt-1">🛒 You need a few more ingredients</span>
                         {% else %}
-                            <span class="d-block mt-1">📝 Add missing items to your shopping list</span>
+                            <span class="d-block mt-1">📝 Consider adding missing items to your inventory</span>
                         {% endif %}
                     </p>
                 </div>
+                {% endif %}
                 
-                <!-- Shopping List Helper -->
-                {% if recipe.feasibility != 'high' %}
+                <!-- Missing Ingredients Note -->
+                {% if recipe.feasibility != 'high' and recipe.ingredients %}
                 <div class="card mt-3" style="border-left: 4px solid var(--info-color);">
                     <div class="card-body">
-                        <h5><i class="fas fa-list-alt"></i> Missing Ingredients</h5>
-                        <div class="missing-ingredients mt-2">
-                            {% for ingredient in recipe.ingredients %}
-                                {% if not ingredient.has_it %}
-                                <span class="badge badge-danger mr-2 mb-2">
-                                    {{ ingredient.name }}
-                                    {% if ingredient.amount and ingredient.unit %}
-                                    ({{ ingredient.amount }} {{ ingredient.unit }})
-                                    {% endif %}
-                                </span>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                        <button class="btn btn-sm btn-outline mt-2" onclick="addToShoppingList()">
-                            <i class="fas fa-cart-plus"></i> Add to Shopping List
-                        </button>
+                        <h5><i class="fas fa-info-circle"></i> Missing Ingredients</h5>
+                        <p class="text-muted mb-0">
+                            This recipe requires {{ recipe.total_count|default:0 }} ingredients. 
+                            You have {{ recipe.has_count|default:0 }} of them.
+                            {% if recipe.has_count|default:0 < recipe.total_count|default:1 %}
+                            Add the missing items to your inventory to make cooking easier!
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
                 {% endif %}
@@ -595,7 +557,7 @@
                 {% endif %}
                 
                 <!-- Dietary Tags -->
-                {% if recipe.diets or recipe.dishTypes or recipe.tags %}
+                {% if recipe.diets or recipe.dishTypes or recipe.cuisines %}
                 <div style="margin-top: 30px;">
                     <h3 class="section-title" style="font-size: 1.2rem;">Tags</h3>
                     <div class="tags-container">
@@ -604,13 +566,13 @@
                             {{ diet }}
                         </span>
                         {% endfor %}
-                        {% for dish in recipe.dishTypes %}
+                        {% for dish in recipe.dishTypes|slice:":3" %}
                         <span class="tag">{{ dish }}</span>
                         {% endfor %}
-                        {% for tag in recipe.tags %}
-                            {% if tag and tag|length > 2 %}
-                            <span class="tag">{{ tag }}</span>
-                            {% endif %}
+                        {% for cuisine in recipe.cuisines %}
+                        <span class="tag" style="background-color: rgba(255, 153, 51, 0.1); color: #FF9933;">
+                            {{ cuisine }}
+                        </span>
                         {% endfor %}
                         {% if recipe.vegan %}
                         <span class="tag" style="background-color: rgba(107, 142, 35, 0.1); color: var(--secondary-color);">
@@ -630,11 +592,6 @@
                         {% if recipe.dairyFree %}
                         <span class="tag" style="background-color: rgba(255, 126, 95, 0.1); color: var(--accent-color);">
                             Dairy-Free
-                        </span>
-                        {% endif %}
-                        {% if recipe.is_indian %}
-                        <span class="tag" style="background-color: rgba(255, 153, 51, 0.1); color: #FF9933; border: 1px solid #FF9933;">
-                            🇮🇳 Indian
                         </span>
                         {% endif %}
                     </div>
@@ -669,7 +626,7 @@
                     {% if not recipe.instruction_steps and recipe.instructions %}
                     <div class="instruction-step">
                         <div class="step-number">1</div>
-                        <div class="step-text">{{ recipe.instructions }}</div>
+                        <div class="step-text">{{ recipe.instructions|linebreaks }}</div>
                     </div>
                     {% endif %}
                     
@@ -698,10 +655,6 @@
                     <a href="{% url 'recipes' %}" class="btn btn-outline">
                         <i class="fas fa-arrow-left"></i> Back to Recipes
                     </a>
-                    
-                    <button class="btn btn-success" onclick="addToShoppingList()">
-                        <i class="fas fa-shopping-cart"></i> Shopping List
-                    </button>
                 </div>
                 
                 <!-- Recipe Info -->
@@ -734,112 +687,6 @@
                 progressFill.style.width = targetWidth;
             }, 500);
         }
-        
-        // Highlight Indian recipes
-        const indianTag = document.querySelector('.tag[style*="🇮🇳"]');
-        if (indianTag) {
-            // Add special animation for Indian recipes
-            indianTag.style.animation = 'pulse 2s infinite';
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes pulse {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
-                    100% { transform: scale(1); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
     });
-    
-    function addToShoppingList() {
-        const missingIngredients = [];
-        document.querySelectorAll('.ingredient-item').forEach(item => {
-            if (item.querySelector('.crossmark')) {
-                const name = item.querySelector('strong').textContent;
-                const measure = item.querySelector('.ingredient-measure').textContent;
-                missingIngredients.push({
-                    name: name,
-                    measure: measure.replace('✗ Need to buy • ', '').replace('✗ Need to buy this ingredient', '')
-                });
-            }
-        });
-        
-        if (missingIngredients.length === 0) {
-            alert('You have all the ingredients! No shopping needed. 🎉');
-            return;
-        }
-        
-        // Store in localStorage
-        let existingList = JSON.parse(localStorage.getItem('grocify_shopping_list') || '[]');
-        const newItems = missingIngredients.filter(item => 
-            !existingList.some(existing => existing.name === item.name)
-        );
-        
-        existingList = [...existingList, ...newItems];
-        localStorage.setItem('grocify_shopping_list', JSON.stringify(existingList));
-        
-        // Show confirmation
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: var(--bg-card); padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%;">
-                <h3 style="margin-bottom: 1rem;">
-                    <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
-                    Added to Shopping List
-                </h3>
-                <p>Added ${newItems.length} items to your shopping list:</p>
-                <ul style="margin: 1rem 0; padding-left: 1.5rem; max-height: 200px; overflow-y: auto;">
-                    ${newItems.map(item => `<li>${item.name} ${item.measure ? `(${item.measure})` : ''}</li>`).join('')}
-                </ul>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button onclick="this.closest('div[style*=\"position: fixed\"]').remove()" 
-                            style="flex: 1; padding: 0.75rem; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">
-                        OK
-                    </button>
-                    <button onclick="viewShoppingList()" 
-                            style="flex: 1; padding: 0.75rem; background: var(--secondary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">
-                        View List
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-    }
-    
-    function viewShoppingList() {
-        // Close modal
-        document.querySelector('div[style*="position: fixed"]')?.remove();
-        
-        // Show shopping list in console or could redirect to a shopping list page
-        const shoppingList = JSON.parse(localStorage.getItem('grocify_shopping_list') || '[]');
-        if (shoppingList.length === 0) {
-            alert('Your shopping list is empty.');
-        } else {
-            let listText = 'Your Shopping List:\n\n';
-            shoppingList.forEach((item, index) => {
-                listText += `${index + 1}. ${item.name} ${item.measure ? `(${item.measure})` : ''}\n`;
-            });
-            alert(listText);
-        }
-    }
-    
-    // Print recipe function
-    function printRecipe() {
-        window.print();
-    }
 </script>
 {% endblock %}

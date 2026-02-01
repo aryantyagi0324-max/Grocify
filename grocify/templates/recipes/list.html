@@ -338,6 +338,13 @@
         Powered by Spoonacular Food API with nutrition scores and detailed instructions.
     </p>
 </div>
+<!-- Fallback Recipes Indicator -->
+{% if recipe_data.api and 'fallback' in recipe_data.api %}
+<div class="alert alert-warning mt-3">
+    <i class="fas fa-info-circle"></i>
+    <strong>Using Fallback Recipes:</strong> Showing default Indian recipes as the API returned limited results.
+</div>
+{% endif %}
 
 {% else %}
 <!-- No Recipes -->

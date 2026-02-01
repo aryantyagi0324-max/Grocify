@@ -3,11 +3,11 @@ import json
 import random
 from django.core.cache import cache
 from django.conf import settings
+from .indian_recipes import INDIAN_RECIPES
 import concurrent.futures
 from datetime import date
 import time
 import re
-
 def get_recipes_by_ingredients(ingredients, number=10):
     """
     Get recipes based on available ingredients using Spoonacular API
@@ -76,6 +76,50 @@ def get_recipes_by_ingredients(ingredients, number=10):
             else:
                 formatted_recipes = []
         
+        # FALLBACK: If no recipes found from API, use default Indian recipes
+        if not formatted_recipes and INDIAN_RECIPES:
+            print("⚠️ Using fallback Indian recipes")
+            formatted_recipes = []
+            for indian_recipe in INDIAN_RECIPES[:number]:
+                # Check if user has any ingredients for this recipe
+                recipe_ingredients = [ing['name'].lower() for ing in indian_recipe['ingredients']]
+                user_has_any = any(any(user_ing in recipe_ing or recipe_ing in user_ing 
+                                     for recipe_ing in recipe_ingredients) 
+                                 for user_ing in ingredients[:5])
+                
+                if user_has_any:
+                    formatted_recipe = {
+                        'id': indian_recipe['id'],
+                        'title': indian_recipe['title'],
+                        'category': indian_recipe['category'],
+                        'image': indian_recipe['image'],
+                        'instructions': indian_recipe['instructions'],
+                        'instruction_steps': [],
+                        'short_instructions': indian_recipe['short_instructions'],
+                        'ingredients': [{'name': ing['name'], 'amount': ing['amount'], 'unit': ing['unit']} 
+                                       for ing in indian_recipe['ingredients']],
+                        'ingredients_count': len(indian_recipe['ingredients']),
+                        'cooking_time': indian_recipe['cooking_time'],
+                        'servings': indian_recipe['servings'],
+                        'has_all_ingredients': False,
+                        'missing_ingredients': [],
+                        'tags': indian_recipe['tags'],
+                        'source': '',
+                        'spoonacular_score': 0,
+                        'health_score': 0,
+                        'price_per_serving': 0,
+                        'very_popular': True,
+                        'very_healthy': True,
+                        'dairy_free': 'dairy' not in str(indian_recipe).lower(),
+                        'gluten_free': 'gluten' not in str(indian_recipe).lower(),
+                        'vegan': True,
+                        'vegetarian': True,
+                        'cuisines': ['Indian'],
+                        'is_indian': True,
+                        'api': 'spoonacular_fallback'
+                    }
+                    formatted_recipes.append(formatted_recipe)
+        
         response = {
             'success': True,
             'recipes': formatted_recipes,
@@ -93,6 +137,52 @@ def get_recipes_by_ingredients(ingredients, number=10):
         
     except Exception as e:
         print(f"Error fetching Spoonacular recipes: {e}")
+        # Return fallback Indian recipes on error
+        if INDIAN_RECIPES:
+            formatted_recipes = []
+            for indian_recipe in INDIAN_RECIPES[:min(number, 4)]:
+                formatted_recipe = {
+                    'id': indian_recipe['id'],
+                    'title': indian_recipe['title'],
+                    'category': indian_recipe['category'],
+                    'image': indian_recipe['image'],
+                    'instructions': indian_recipe['instructions'],
+                    'instruction_steps': [],
+                    'short_instructions': indian_recipe['short_instructions'],
+                    'ingredients': [{'name': ing['name'], 'amount': ing['amount'], 'unit': ing['unit']} 
+                                   for ing in indian_recipe['ingredients']],
+                    'ingredients_count': len(indian_recipe['ingredients']),
+                    'cooking_time': indian_recipe['cooking_time'],
+                    'servings': indian_recipe['servings'],
+                    'has_all_ingredients': False,
+                    'missing_ingredients': [],
+                    'tags': indian_recipe['tags'],
+                    'source': '',
+                    'spoonacular_score': 0,
+                    'health_score': 0,
+                    'price_per_serving': 0,
+                    'very_popular': True,
+                    'very_healthy': True,
+                    'dairy_free': 'dairy' not in str(indian_recipe).lower(),
+                    'gluten_free': 'gluten' not in str(indian_recipe).lower(),
+                    'vegan': True,
+                    'vegetarian': True,
+                    'cuisines': ['Indian'],
+                    'is_indian': True,
+                    'api': 'spoonacular_fallback_error'
+                }
+                formatted_recipes.append(formatted_recipe)
+            
+            return {
+                'success': True,
+                'recipes': formatted_recipes,
+                'total_recipes': len(formatted_recipes),
+                'ingredients_searched': ingredients[:3],
+                'cached': False,
+                'load_time': 'error_fallback',
+                'api': 'spoonacular_fallback'
+            }
+        
         return {
             'error': str(e),
             'recipes': []
@@ -445,6 +535,54 @@ def get_recipe_suggestions(user_items):
 
 def get_recipe_details(recipe_id):
     """Get detailed recipe information from Spoonacular"""
+    # Check if it's a fallback Indian recipe ID
+    if recipe_id.startswith('indian_'):
+        # Find the Indian recipe
+        from .indian_recipes import INDIAN_RECIPES
+        for recipe in INDIAN_RECIPES:
+            if recipe['id'] == recipe_id:
+                # Convert to Spoonacular format
+                instruction_steps = []
+                if recipe.get('instructions'):
+                    # Parse instructions into steps
+                    instructions = recipe['instructions']
+                    steps = instructions.split('. ')
+                    for i, step in enumerate(steps, 1):
+                        if step.strip():
+                            instruction_steps.append({
+                                'number': i,
+                                'text': step.strip() + ('.' if not step.endswith('.') else '')
+                            })
+                
+                return {
+                    'id': recipe['id'],
+                    'title': recipe['title'],
+                    'image': recipe['image'],
+                    'summary': f"A delicious Indian {recipe['category'].lower()} recipe.",
+                    'instructions': recipe['instructions'],
+                    'instruction_steps': instruction_steps,
+                    'readyInMinutes': recipe['cooking_time'],
+                    'servings': recipe['servings'],
+                    'sourceUrl': '',
+                    'spoonacularSourceUrl': '',
+                    'healthScore': 75,
+                    'pricePerServing': 2.50,
+                    'dishTypes': [recipe['category']],
+                    'diets': ['Vegetarian', 'Vegan'] if 'Vegetarian' in recipe['tags'] else ['Vegetarian'],
+                    'cuisines': ['Indian'],
+                    'ingredients': [{'name': ing['name'], 'amount': ing['amount'], 'unit': ing['unit']} 
+                                   for ing in recipe['ingredients']],
+                    'extendedIngredients': [{'name': ing['name'], 'amount': ing['amount'], 'unit': ing['unit']} 
+                                           for ing in recipe['ingredients']],
+                    'veryPopular': True,
+                    'veryHealthy': True,
+                    'dairyFree': 'dairy' not in str(recipe).lower(),
+                    'glutenFree': 'gluten' not in str(recipe).lower(),
+                    'vegan': 'Vegan' in recipe['tags'],
+                    'vegetarian': 'Vegetarian' in recipe['tags'],
+                    'api': 'spoonacular_fallback'
+                }
+    
     cache_key = f"spoonacular_details_{recipe_id}"
     cached = cache.get(cache_key)
     
