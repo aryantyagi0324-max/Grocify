@@ -346,7 +346,6 @@ def recipes(request):
         'recipe_data': recipe_data,
         'total_items': total_items,
     }
-    # FIXED: Changed from 'recipe/list.py' to 'recipes/list.html'
     return render(request, 'recipes/list.html', context)
 
 
@@ -366,12 +365,11 @@ def recipe_detail(request, recipe_id):
         })
     
     # Check which ingredients the user has using SMART matching
-    if 'ingredients' in recipe or 'extendedIngredients' in recipe:
-        ingredients = recipe.get('ingredients') or recipe.get('extendedIngredients', [])
-        total_ingredients = len(ingredients)
+    if 'ingredients' in recipe:
+        total_ingredients = len(recipe['ingredients'])
         has_count = 0
         
-        for ingredient in ingredients:
+        for ingredient in recipe['ingredients']:
             ingredient_name = ingredient.get('name', '').lower()
             ingredient_has_it = False
             
@@ -405,5 +403,4 @@ def recipe_detail(request, recipe_id):
             recipe['has_count'] = has_count
             recipe['total_count'] = total_ingredients
     
-    # FIXED: Changed from 'details.py' to 'recipes/detail.html'
     return render(request, 'recipes/detail.html', {'recipe': recipe})
