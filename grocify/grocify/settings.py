@@ -140,6 +140,9 @@ CACHES = {
     }
 }
 
-# TheMealDB API Configuration (FREE - no API key required)
-THEMEALDB_BASE_URL = 'https://www.themealdb.com/api/json/v1/1'
-RECIPE_API = 'themealdb'  # Changed from 'spoonacular' to 'themealdb'
+# Spoonacular API Configuration
+SPOONACULAR_API_KEY = "3d2234c00dd2455698770708eb38a7c5"  # Replace with your actual key
+SPOONACULAR_BASE_URL = 'https://api.spoonacular.com'
+RECIPE_API = 'spoonacular'  # Changed from 'themealdb' to 'spoonacular'
+
+# Add to the end of the file

@@ -1,10 +1,8 @@
 """
-API utilities for TheMealDB integration.
-FREE API - no API key required!
+API utilities for Spoonacular integration.
 """
 import requests
 import json
-import random
 from django.core.cache import cache
 from django.conf import settings
 from .indian_recipes import INDIAN_RECIPES
@@ -15,7 +13,7 @@ from datetime import date
 
 def get_recipes_by_ingredients(ingredients, number=10):
     """
-    Get recipes based on available ingredients using TheMealDB API
+    Get recipes based on available ingredients using Spoonacular API
     """
     if not ingredients:
         return {
@@ -25,256 +23,135 @@ def get_recipes_by_ingredients(ingredients, number=10):
     
     # Create cache key based on ingredients
     ingredients_key = '_'.join(sorted([ing.lower().replace(' ', '_') for ing in ingredients[:3]]))
-    cache_key = f"themealdb_recipes_{ingredients_key}_{number}"
+    cache_key = f"spoonacular_recipes_{ingredients_key}_{number}"
     
     # Try to get from cache first
     cached = cache.get(cache_key)
     if cached:
-        print(f"✅ Using cached TheMealDB recipes for: {ingredients[:3]}")
+        print(f"✅ Using cached Spoonacular recipes for: {ingredients[:3]}")
         cached['cached'] = True
         return cached
     
-    print(f"🔄 Fetching fresh TheMealDB recipes for: {ingredients[:3]}")
+    print(f"🔄 Fetching fresh Spoonacular recipes for: {ingredients[:3]}")
     
     try:
-        # TheMealDB doesn't have a direct "find by ingredients" endpoint
-        # So we'll search by first ingredient and then filter
-        primary_ingredient = ingredients[0] if ingredients else ''
+        # Spoonacular API endpoint for finding recipes by ingredients
+        url = f"{settings.SPOONACULAR_BASE_URL}/recipes/findByIngredients"
         
-        formatted_recipes = []
+        params = {
+            'apiKey': settings.SPOONACULAR_API_KEY,
+            'ingredients': ','.join(ingredients[:5]),  # Use up to 5 ingredients
+            'number': number,
+            'ranking': 2,  # Maximize used ingredients
+            'ignorePantry': True,  # Ignore pantry staples
+            'limitLicense': False
+        }
         
-        if primary_ingredient:
-            # Search by ingredient
-            url = f"{settings.THEMEALDB_BASE_URL}/filter.php"
-            params = {
-                'i': primary_ingredient.lower()
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if data.get('meals'):
-                    # Get detailed information for each recipe
-                    recipe_ids = [meal['idMeal'] for meal in data['meals'][:min(number*2, 20)]]
-                    
-                    # Get details for each recipe
-                    detailed_recipes = []
-                    for recipe_id in recipe_ids:
-                        details = get_recipe_details(recipe_id)
-                        if details:
-                            detailed_recipes.append(details)
-                    
-                    # Filter recipes that contain at least one of our ingredients
-                    for recipe in detailed_recipes[:number]:
-                        recipe_ingredients = extract_ingredients_from_meal(recipe)
-                        recipe_ingredient_names = [ing['name'].lower() for ing in recipe_ingredients]
-                        
-                        # Check if recipe uses any of our ingredients
-                        matches_ingredient = False
-                        for user_ing in ingredients[:5]:
-                            for recipe_ing in recipe_ingredient_names:
-                                if _check_ingredient_match_smart(user_ing.lower(), recipe_ing):
-                                    matches_ingredient = True
-                                    break
-                            if matches_ingredient:
-                                break
-                        
-                        if matches_ingredient:
-                            formatted_recipe = _format_recipe_themealdb(recipe, recipe_ingredients)
-                            formatted_recipes.append(formatted_recipe)
+        response = requests.get(url, params=params, timeout=15)
         
-        # If we don't have enough recipes, add random popular recipes
-        if len(formatted_recipes) < min(number, 6):
-            # Get random popular meals
-            url = f"{settings.THEMEALDB_BASE_URL}/random.php"
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('meals'):
-                    for meal in data['meals'][:min(number - len(formatted_recipes), 5)]:
-                        recipe_ingredients = extract_ingredients_from_meal(meal)
-                        formatted_recipe = _format_recipe_themealdb(meal, recipe_ingredients)
-                        formatted_recipes.append(formatted_recipe)
-        
-        # FALLBACK: If no recipes found from API, use our Indian recipes
-        if not formatted_recipes and INDIAN_RECIPES:
-            print("⚠️ Using fallback Indian recipes")
+        if response.status_code == 200:
+            recipes_data = response.json()
             formatted_recipes = []
-            for indian_recipe in INDIAN_RECIPES[:number]:
-                # Check if user has any ingredients for this recipe
-                recipe_ingredients = [ing['name'].lower() for ing in indian_recipe['ingredients']]
-                user_has_any = any(_check_ingredient_match_smart(user_ing, recipe_ing) 
-                                 for user_ing in ingredients[:5]
-                                 for recipe_ing in recipe_ingredients)
-                
-                if user_has_any:
-                    formatted_recipe = _format_indian_recipe(indian_recipe)
+            
+            for recipe_data in recipes_data:
+                # Get detailed information for each recipe
+                detailed_recipe = get_recipe_details(recipe_data['id'])
+                if detailed_recipe:
+                    formatted_recipe = _format_recipe_spoonacular(detailed_recipe, recipe_data)
                     formatted_recipes.append(formatted_recipe)
+            
+            # If we have formatted recipes, return them
+            if formatted_recipes:
+                response_data = {
+                    'success': True,
+                    'recipes': formatted_recipes,
+                    'total_recipes': len(formatted_recipes),
+                    'ingredients_searched': ingredients[:3],
+                    'cached': False,
+                    'load_time': 'fresh',
+                    'api': 'spoonacular'
+                }
+                
+                # Cache for 4 hours
+                cache.set(cache_key, response_data, 14400)
+                
+                return response_data
         
-        response = {
+        # If Spoonacular API fails or returns no results, use Indian recipes fallback
+        print("⚠️ Spoonacular API returned no results, using Indian recipes fallback")
+        return get_indian_recipes_fallback(ingredients, number)
+        
+    except Exception as e:
+        print(f"Error fetching Spoonacular recipes: {e}")
+        # Return fallback Indian recipes on error
+        return get_indian_recipes_fallback(ingredients, number)
+
+
+def get_indian_recipes_fallback(ingredients, number=10):
+    """Fallback to Indian recipes when Spoonacular fails"""
+    if INDIAN_RECIPES:
+        formatted_recipes = []
+        for indian_recipe in INDIAN_RECIPES[:number]:
+            # Check if user has any ingredients for this recipe
+            recipe_ingredients = [ing['name'].lower() for ing in indian_recipe['ingredients']]
+            user_has_any = any(_check_ingredient_match_smart(user_ing, recipe_ing) 
+                             for user_ing in ingredients[:5]
+                             for recipe_ing in recipe_ingredients)
+            
+            if user_has_any or not ingredients:  # Show some recipes even if no match
+                formatted_recipe = _format_indian_recipe(indian_recipe)
+                formatted_recipes.append(formatted_recipe)
+        
+        return {
             'success': True,
             'recipes': formatted_recipes,
             'total_recipes': len(formatted_recipes),
             'ingredients_searched': ingredients[:3],
             'cached': False,
-            'load_time': 'fresh',
-            'api': 'themealdb'
+            'load_time': 'fallback',
+            'api': 'indian_fallback'
+        }
+    
+    return {
+        'error': 'No recipes available',
+        'recipes': []
+    }
+
+
+def get_recipe_details(recipe_id):
+    """Get detailed recipe information from Spoonacular"""
+    cache_key = f"spoonacular_details_{recipe_id}"
+    cached = cache.get(cache_key)
+    
+    if cached:
+        return cached
+    
+    try:
+        url = f"{settings.SPOONACULAR_BASE_URL}/recipes/{recipe_id}/information"
+        
+        params = {
+            'apiKey': settings.SPOONACULAR_API_KEY,
+            'includeNutrition': False
         }
         
-        # Cache for 6 hours
-        cache.set(cache_key, response, 21600)
+        response = requests.get(url, params=params, timeout=15)
         
-        return response
-        
-    except Exception as e:
-        print(f"Error fetching TheMealDB recipes: {e}")
-        # Return fallback Indian recipes on error
-        if INDIAN_RECIPES:
-            formatted_recipes = []
-            for indian_recipe in INDIAN_RECIPES[:min(number, 8)]:
-                formatted_recipe = _format_indian_recipe(indian_recipe)
-                formatted_recipes.append(formatted_recipe)
+        if response.status_code == 200:
+            recipe_data = response.json()
             
-            return {
-                'success': True,
-                'recipes': formatted_recipes,
-                'total_recipes': len(formatted_recipes),
-                'ingredients_searched': ingredients[:3],
-                'cached': False,
-                'load_time': 'error_fallback',
-                'api': 'themealdb_fallback'
-            }
-        
-        return {
-            'error': str(e),
-            'recipes': []
-        }
-
-
-def extract_ingredients_from_meal(meal):
-    """Extract ingredients from TheMealDB recipe format"""
-    ingredients = []
+            # Cache for 6 hours
+            cache.set(cache_key, recipe_data, 21600)
+            return recipe_data
+            
+    except Exception as e:
+        print(f"Error fetching recipe details {recipe_id}: {e}")
     
-    for i in range(1, 21):  # TheMealDB has up to 20 ingredients
-        ingredient_key = f'strIngredient{i}'
-        measure_key = f'strMeasure{i}'
-        
-        ingredient = meal.get(ingredient_key, '').strip()
-        measure = meal.get(measure_key, '').strip()
-        
-        if ingredient and ingredient.lower() != 'null' and ingredient.lower() != '':
-            ingredients.append({
-                'name': ingredient,
-                'measure': measure,
-                'display': f"{measure} {ingredient}".strip() if measure else ingredient
-            })
-    
-    return ingredients
-
-
-def _format_recipe_themealdb(meal, ingredients):
-    """Format TheMealDB recipe data for template"""
-    
-    # Get instructions
-    instructions = meal.get('strInstructions', '')
-    
-    # Parse instructions into steps
-    instruction_steps = []
-    if instructions:
-        # Split by newlines or periods
-        steps = []
-        if '\r\n' in instructions:
-            steps = [step.strip() for step in instructions.split('\r\n') if step.strip()]
-        elif '\n' in instructions:
-            steps = [step.strip() for step in instructions.split('\n') if step.strip()]
-        else:
-            # Split by sentences
-            sentences = re.split(r'(?<=[.!?])\s+', instructions)
-            steps = [s.strip() for s in sentences if s.strip()]
-        
-        # Create numbered steps
-        for i, step in enumerate(steps[:15], 1):  # Limit to 15 steps
-            instruction_steps.append({
-                'number': i,
-                'text': step
-            })
-    
-    # Get category and area
-    category = meal.get('strCategory', 'General')
-    area = meal.get('strArea', 'International')
-    
-    # Determine if it's Indian
-    is_indian = area.lower() == 'indian' or any(word in category.lower() for word in ['indian', 'curry'])
-    
-    # Get YouTube video if available
-    youtube_url = meal.get('strYoutube', '')
-    
-    return {
-        'id': meal.get('idMeal'),
-        'title': meal.get('strMeal', 'Unknown Recipe'),
-        'category': category,
-        'image': meal.get('strMealThumb'),
-        'instructions': instructions,
-        'instruction_steps': instruction_steps,
-        'short_instructions': instructions[:150] + '...' if instructions else 'No instructions available',
-        'ingredients': ingredients,
-        'ingredients_count': len(ingredients),
-        'cooking_time': 30,  # TheMealDB doesn't provide cooking time, default to 30
-        'servings': 4,  # Default servings
-        'has_all_ingredients': False,
-        'missing_ingredients': [],
-        'tags': [meal.get('strTags', '')] if meal.get('strTags') else [],
-        'source': meal.get('strSource', ''),
-        'youtube': youtube_url,
-        'area': area,
-        'is_indian': is_indian,
-        'api': 'themealdb'
-    }
-
-
-def _format_indian_recipe(indian_recipe):
-    """Format Indian recipe data for template"""
-    instruction_steps = []
-    if indian_recipe.get('instructions'):
-        instructions = indian_recipe['instructions']
-        steps = instructions.split('. ')
-        for i, step in enumerate(steps, 1):
-            if step.strip():
-                instruction_steps.append({
-                    'number': i,
-                    'text': step.strip() + ('.' if not step.endswith('.') else '')
-                })
-    
-    return {
-        'id': indian_recipe['id'],
-        'title': indian_recipe['title'],
-        'category': indian_recipe['category'],
-        'image': indian_recipe['image'],
-        'instructions': indian_recipe['instructions'],
-        'instruction_steps': instruction_steps,
-        'short_instructions': indian_recipe['short_instructions'],
-        'ingredients': [{'name': ing['name'], 'measure': f"{ing['amount']} {ing['unit']}", 'display': f"{ing['amount']} {ing['unit']} {ing['name']}"} 
-                       for ing in indian_recipe['ingredients']],
-        'ingredients_count': len(indian_recipe['ingredients']),
-        'cooking_time': indian_recipe['cooking_time'],
-        'servings': indian_recipe['servings'],
-        'has_all_ingredients': False,
-        'missing_ingredients': [],
-        'tags': indian_recipe['tags'],
-        'source': '',
-        'youtube': '',
-        'area': 'Indian',
-        'is_indian': True,
-        'api': 'indian_fallback'
-    }
+    return None
 
 
 def get_recipe_suggestions(user_items):
     """
-    Get recipe suggestions based on user's inventory using TheMealDB
+    Get recipe suggestions based on user's inventory using Spoonacular
     """
     # Extract ingredient names
     ingredients = [item.name.lower() for item in user_items if item.name]
@@ -284,7 +161,7 @@ def get_recipe_suggestions(user_items):
             'error': 'No ingredients in inventory',
             'recipes': [],
             'cached': True,
-            'api': 'themealdb'
+            'api': 'spoonacular'
         }
     
     # Clean and prepare ingredients
@@ -313,146 +190,115 @@ def get_recipe_suggestions(user_items):
     # Remove duplicates
     unique_ingredients = list(set(cleaned_ingredients))
     
-    # Limit ingredients for API call
-    search_ingredients = unique_ingredients[:5]  # TheMealDB works better with fewer ingredients
-    
     # Get recipe suggestions
-    recipe_data = get_recipes_by_ingredients(search_ingredients, number=12)
+    recipe_data = get_recipes_by_ingredients(unique_ingredients, number=12)
     
-    # Filter recipes to show only those where user has most ingredients
+    # Calculate match percentages for Spoonacular recipes
     if recipe_data.get('recipes'):
-        user_ingredients_set = set(search_ingredients)
-        scored_recipes = []
-        
         for recipe in recipe_data['recipes']:
-            # Calculate ingredient match score with smart matching
-            recipe_ingredients = []
-            if isinstance(recipe.get('ingredients'), list):
-                recipe_ingredients = [ing.get('name', '').lower() 
-                                     for ing in recipe['ingredients'] 
-                                     if ing.get('name')]
-            
-            # Calculate match score
-            match_score = 0
-            total_ingredients = len(recipe_ingredients)
-            
-            if total_ingredients > 0:
-                for recipe_ing in recipe_ingredients:
-                    for user_ing in user_ingredients_set:
-                        if _check_ingredient_match_smart(user_ing, recipe_ing):
-                            match_score += 1
-                            break
+            if 'usedIngredients' in recipe and 'missedIngredients' in recipe:
+                used_count = len(recipe.get('usedIngredients', []))
+                missed_count = len(recipe.get('missedIngredients', []))
+                total_ingredients = used_count + missed_count
                 
-                recipe['match_percentage'] = int((match_score / total_ingredients) * 100) if total_ingredients > 0 else 0
-                recipe['matching_ingredients'] = match_score
-                recipe['total_recipe_ingredients'] = total_ingredients
-                
-                # Add to scored recipes
-                scored_recipes.append(recipe)
-        
-        # Sort by match percentage (highest first)
-        scored_recipes.sort(key=lambda x: x['match_percentage'], reverse=True)
-        
-        # Filter out recipes with very low match percentage (< 20%)
-        filtered_recipes = [r for r in scored_recipes if r['match_percentage'] >= 20]
-        
-        # If we have filtered recipes, use them
-        if filtered_recipes:
-            recipe_data['recipes'] = filtered_recipes[:10]
-        else:
-            # If no good matches, show top recipes anyway
-            recipe_data['recipes'] = scored_recipes[:8]
+                if total_ingredients > 0:
+                    match_percentage = int((used_count / total_ingredients) * 100)
+                    recipe['match_percentage'] = match_percentage
+                    recipe['matching_ingredients'] = used_count
+                    recipe['total_recipe_ingredients'] = total_ingredients
+                    
+                    # Determine feasibility
+                    if match_percentage >= 80:
+                        recipe['feasibility'] = 'high'
+                        recipe['feasibility_text'] = 'You have most ingredients!'
+                    elif match_percentage >= 50:
+                        recipe['feasibility'] = 'medium'
+                        recipe['feasibility_text'] = 'You have many ingredients'
+                    else:
+                        recipe['feasibility'] = 'low'
+                        recipe['feasibility_text'] = 'You need several ingredients'
     
     return recipe_data
 
 
-def get_recipe_details(recipe_id):
-    """Get detailed recipe information from TheMealDB"""
-    # Check if it's a fallback Indian recipe ID
-    if recipe_id.startswith('indian_'):
-        # Find the Indian recipe
-        for recipe in INDIAN_RECIPES:
-            if recipe['id'] == recipe_id:
-                return _format_indian_recipe_for_detail(recipe)
+def _format_recipe_spoonacular(detailed_recipe, summary_data):
+    """Format Spoonacular recipe data for template"""
     
-    cache_key = f"themealdb_details_{recipe_id}"
-    cached = cache.get(cache_key)
+    # Extract instructions
+    instruction_steps = []
+    if detailed_recipe.get('analyzedInstructions') and len(detailed_recipe['analyzedInstructions']) > 0:
+        for instruction in detailed_recipe['analyzedInstructions'][0]['steps']:
+            instruction_steps.append({
+                'number': instruction['number'],
+                'text': instruction['step']
+            })
     
-    if cached:
-        return cached
+    # Get used and missed ingredients from summary data
+    used_ingredients = []
+    missed_ingredients = []
     
-    try:
-        url = f"{settings.THEMEALDB_BASE_URL}/lookup.php"
-        params = {
-            'i': recipe_id
-        }
-        
-        response = requests.get(url, params=params, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            
-            if data.get('meals'):
-                meal = data['meals'][0]
-                
-                # Extract ingredients
-                ingredients = extract_ingredients_from_meal(meal)
-                
-                # Get instructions
-                instructions = meal.get('strInstructions', '')
-                
-                # Parse instructions into steps
-                instruction_steps = []
-                if instructions:
-                    # Split by newlines or periods
-                    steps = []
-                    if '\r\n' in instructions:
-                        steps = [step.strip() for step in instructions.split('\r\n') if step.strip()]
-                    elif '\n' in instructions:
-                        steps = [step.strip() for step in instructions.split('\n') if step.strip()]
-                    else:
-                        # Split by sentences
-                        sentences = re.split(r'(?<=[.!?])\s+', instructions)
-                        steps = [s.strip() for s in sentences if s.strip()]
-                    
-                    # Create numbered steps
-                    for i, step in enumerate(steps[:15], 1):  # Limit to 15 steps
-                        instruction_steps.append({
-                            'number': i,
-                            'text': step
-                        })
-                
-                detailed_recipe = {
-                    'id': meal.get('idMeal'),
-                    'title': meal.get('strMeal'),
-                    'image': meal.get('strMealThumb'),
-                    'summary': f"A delicious {meal.get('strArea', '')} {meal.get('strCategory', 'recipe')}.",
-                    'instructions': instructions,
-                    'instruction_steps': instruction_steps,
-                    'readyInMinutes': 30,  # TheMealDB doesn't provide cooking time
-                    'servings': 4,  # Default servings
-                    'sourceUrl': meal.get('strSource', ''),
-                    'youtube': meal.get('strYoutube', ''),
-                    'area': meal.get('strArea', ''),
-                    'category': meal.get('strCategory', ''),
-                    'tags': meal.get('strTags', '').split(',') if meal.get('strTags') else [],
-                    'ingredients': ingredients,
-                    'extendedIngredients': ingredients,  # For compatibility
-                    'is_indian': meal.get('strArea', '').lower() == 'indian',
-                    'api': 'themealdb'
-                }
-                
-                cache.set(cache_key, detailed_recipe, 43200)
-                return detailed_recipe
-            
-    except Exception as e:
-        print(f"Error fetching recipe details {recipe_id}: {e}")
+    if 'usedIngredients' in summary_data:
+        used_ingredients = [
+            {
+                'name': ing['name'],
+                'amount': ing['amount'],
+                'unit': ing['unit'],
+                'original': f"{ing['amount']} {ing['unit']} {ing['name']}"
+            }
+            for ing in summary_data['usedIngredients']
+        ]
     
-    return None
+    if 'missedIngredients' in summary_data:
+        missed_ingredients = [
+            {
+                'name': ing['name'],
+                'amount': ing['amount'],
+                'unit': ing['unit'],
+                'original': f"{ing['amount']} {ing['unit']} {ing['name']}"
+            }
+            for ing in summary_data['missedIngredients']
+        ]
+    
+    # Combine all ingredients
+    all_ingredients = used_ingredients + missed_ingredients
+    
+    # Check if it's Indian cuisine
+    is_indian = False
+    if detailed_recipe.get('cuisines'):
+        is_indian = any('indian' in cuisine.lower() for cuisine in detailed_recipe['cuisines'])
+    
+    return {
+        'id': detailed_recipe.get('id'),
+        'title': detailed_recipe.get('title', 'Unknown Recipe'),
+        'category': ', '.join(detailed_recipe.get('dishTypes', []))[:50] or 'General',
+        'image': detailed_recipe.get('image'),
+        'summary': detailed_recipe.get('summary', ''),
+        'instructions': detailed_recipe.get('instructions', ''),
+        'instruction_steps': instruction_steps,
+        'short_instructions': (detailed_recipe.get('summary') or '')[:150] + '...',
+        'ingredients': all_ingredients,
+        'usedIngredients': used_ingredients,
+        'missedIngredients': missed_ingredients,
+        'ingredients_count': len(all_ingredients),
+        'cooking_time': detailed_recipe.get('readyInMinutes', 30),
+        'servings': detailed_recipe.get('servings', 4),
+        'has_all_ingredients': len(missed_ingredients) == 0,
+        'missing_ingredients': missed_ingredients,
+        'tags': detailed_recipe.get('dishTypes', []) + detailed_recipe.get('diets', []),
+        'sourceUrl': detailed_recipe.get('sourceUrl', ''),
+        'spoonacularSourceUrl': detailed_recipe.get('spoonacularSourceUrl', ''),
+        'healthScore': detailed_recipe.get('healthScore'),
+        'pricePerServing': detailed_recipe.get('pricePerServing'),
+        'diets': detailed_recipe.get('diets', []),
+        'dishTypes': detailed_recipe.get('dishTypes', []),
+        'cuisines': detailed_recipe.get('cuisines', []),
+        'is_indian': is_indian,
+        'api': 'spoonacular'
+    }
 
 
-def _format_indian_recipe_for_detail(indian_recipe):
-    """Format Indian recipe for detail view"""
+def _format_indian_recipe(indian_recipe):
+    """Format Indian recipe data for template"""
     instruction_steps = []
     if indian_recipe.get('instructions'):
         instructions = indian_recipe['instructions']
@@ -464,31 +310,29 @@ def _format_indian_recipe_for_detail(indian_recipe):
                     'text': step.strip() + ('.' if not step.endswith('.') else '')
                 })
     
-    ingredients = []
-    for ing in indian_recipe['ingredients']:
-        ingredients.append({
-            'name': ing['name'],
-            'measure': f"{ing['amount']} {ing['unit']}",
-            'display': f"{ing['amount']} {ing['unit']} {ing['name']}",
-            'original': f"{ing['amount']} {ing['unit']} {ing['name']}"
-        })
-    
     return {
         'id': indian_recipe['id'],
         'title': indian_recipe['title'],
+        'category': indian_recipe['category'],
         'image': indian_recipe['image'],
-        'summary': f"A delicious Indian {indian_recipe['category'].lower()} recipe.",
         'instructions': indian_recipe['instructions'],
         'instruction_steps': instruction_steps,
-        'readyInMinutes': indian_recipe['cooking_time'],
+        'short_instructions': indian_recipe['short_instructions'],
+        'ingredients': [{'name': ing['name'], 'amount': ing['amount'], 'unit': ing['unit'], 'original': f"{ing['amount']} {ing['unit']} {ing['name']}"} 
+                       for ing in indian_recipe['ingredients']],
+        'ingredients_count': len(indian_recipe['ingredients']),
+        'cooking_time': indian_recipe['cooking_time'],
         'servings': indian_recipe['servings'],
-        'sourceUrl': '',
-        'youtube': '',
-        'area': 'Indian',
-        'category': indian_recipe['category'],
+        'has_all_ingredients': False,
+        'missing_ingredients': [],
         'tags': indian_recipe['tags'],
-        'ingredients': ingredients,
-        'extendedIngredients': ingredients,
+        'sourceUrl': '',
+        'spoonacularSourceUrl': '',
+        'healthScore': None,
+        'pricePerServing': None,
+        'diets': [],
+        'dishTypes': [indian_recipe['category']],
+        'cuisines': ['Indian'],
         'is_indian': True,
         'api': 'indian_fallback'
     }
@@ -602,18 +446,6 @@ def _check_ingredient_match_smart(user_ingredient, recipe_ingredient):
         significant_words = [w for w in common_words if len(w) > 2 and w not in filler_words]
         if significant_words:
             return True
-    
-    # Special case: prevent "milk" matching "coconut milk" or "almond milk"
-    if user_ing == 'milk':
-        if 'coconut' in recipe_ing or 'almond' in recipe_ing or 'soy' in recipe_ing or 'oat' in recipe_ing:
-            return False
-        if recipe_ing.endswith(' milk') and recipe_ing != 'milk':
-            return False
-    
-    # Special case: prevent "flour" matching specific flours
-    if user_ing == 'flour':
-        if 'wheat' in recipe_ing or 'rice' in recipe_ing or 'gram' in recipe_ing or 'all purpose' in recipe_ing:
-            return False
     
     return False
 

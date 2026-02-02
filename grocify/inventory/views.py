@@ -16,7 +16,7 @@ from .forms import CustomUserCreationForm, LoginForm, FoodItemForm
 from .api_utils import get_recipe_suggestions, get_recipe_details, check_ingredient_match
 
 
-# Public views
+# Public views (same as before, no changes needed)
 def home(request):
     """Home page view - the first page users see"""
     context = {
@@ -365,12 +365,12 @@ def recipe_detail(request, recipe_id):
         })
     
     # Check which ingredients the user has using SMART matching
-    if 'ingredients' in recipe:
-        total_ingredients = len(recipe['ingredients'])
+    if 'extendedIngredients' in recipe:
+        total_ingredients = len(recipe['extendedIngredients'])
         has_count = 0
         
-        for ingredient in recipe['ingredients']:
-            ingredient_name = ingredient.get('name', '').lower()
+        for ingredient in recipe['extendedIngredients']:
+            ingredient_name = ingredient.get('nameClean', ingredient.get('name', '')).lower()
             ingredient_has_it = False
             
             # Check if user has this ingredient using SMART matching
