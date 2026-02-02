@@ -264,6 +264,54 @@ def add_item(request):
     }
     return render(request, 'inventory/add_item.html', context)
 
+@login_required
+def add_item(request):
+    """Add a new food item with AJAX support"""
+    if request.method == 'POST':
+        form = FoodItemForm(request.POST)
+        if form.is_valid():
+            item = form.save(commit=False)
+            item.user = request.user
+            item.save()
+            
+            # Update expiry status
+            item.update_expiry_status()
+            
+            # Check if it's an AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'"{item.name}" added to your inventory!',
+                    'item_id': item.id
+                })
+            
+            messages.success(request, f'"{item.name}" added to your inventory!')
+            return redirect('inventory_list')
+        else:
+            # Handle AJAX errors
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+            
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        # Set default expiry date to 7 days from now
+        initial_date = date.today() + timedelta(days=7)
+        form = FoodItemForm(initial={'expiry_date': initial_date})
+    
+    context = {
+        'page_title': 'Add Food Item',
+        'form': form,
+    }
+    
+    # Handle AJAX GET requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+    
+    return render(request, 'inventory/add_item.html', context)
+
 
 @login_required
 def edit_item(request, item_id):
@@ -291,6 +339,44 @@ def edit_item(request, item_id):
     }
     return render(request, 'inventory/edit_item.html', context)
 
+@login_required
+def edit_item(request, item_id):
+    """Edit an existing food item with quick edit support"""
+    item = get_object_or_404(FoodItem, id=item_id, user=request.user)
+    
+    if request.method == 'POST':
+        # Check for quick edit (just quantity update)
+        if 'quick_edit' in request.POST:
+            new_quantity = request.POST.get('quantity')
+            try:
+                item.quantity = float(new_quantity)
+                item.save()
+                messages.success(request, f'Quantity updated to {item.quantity} {item.unit}')
+                return redirect('inventory_list')
+            except ValueError:
+                messages.error(request, 'Invalid quantity')
+                return redirect('inventory_list')
+        
+        # Full form edit
+        form = FoodItemForm(request.POST, instance=item)
+        if form.is_valid():
+            updated_item = form.save()
+            # Update expiry status
+            updated_item.update_expiry_status()
+            
+            messages.success(request, f'"{updated_item.name}" updated successfully!')
+            return redirect('inventory_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = FoodItemForm(instance=item)
+    
+    context = {
+        'page_title': 'Edit Food Item',
+        'form': form,
+        'item': item,
+    }
+    return render(request, 'inventory/edit_item.html', context)
 
 @login_required
 def delete_item(request, item_id):
