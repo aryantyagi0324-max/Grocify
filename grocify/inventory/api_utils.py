@@ -349,11 +349,11 @@ def _check_ingredient_match_smart(user_ingredient, recipe_ingredient):
     user_ing = user_ingredient.lower().strip()
     recipe_ing = recipe_ingredient.lower().strip()
     
-    # Remove punctuation
+    
     user_ing = user_ing.translate(str.maketrans('', '', string.punctuation))
     recipe_ing = recipe_ing.translate(str.maketrans('', '', string.punctuation))
     
-    # Remove common filler words
+    
     filler_words = ['fresh', 'dried', 'powdered', 'ground', 'chopped', 'sliced', 'diced', 
                    'minced', 'grated', 'crushed', 'whole', 'raw', 'cooked', 'roasted',
                    'toasted', 'optional', 'for garnish', 'as needed', 'to taste']
