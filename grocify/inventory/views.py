@@ -313,13 +313,23 @@ def add_item(request):
                 })
             
             messages.success(request, f'"{item.name}" added to your inventory!')
-            return redirect('inventory_list')
+            
+            # Check if "Add & Continue" was clicked
+            if 'add_another' in request.POST:
+                # Redirect back to the same page with cleared form
+                return redirect('add_item')
+            else:
+                # Redirect to inventory list
+                return redirect('inventory_list')
         else:
             # Handle AJAX errors
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors_dict = {}
+                for field, error_list in form.errors.items():
+                    errors_dict[field] = [str(error) for error in error_list]
                 return JsonResponse({
                     'success': False,
-                    'errors': form.errors
+                    'errors': errors_dict
                 }, status=400)
             
             messages.error(request, 'Please correct the errors below.')
@@ -338,33 +348,6 @@ def add_item(request):
         return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
     
     return render(request, 'inventory/add_item.html', context)
-
-
-@login_required
-def edit_item(request, item_id):
-    """Edit an existing food item"""
-    item = get_object_or_404(FoodItem, id=item_id, user=request.user)
-    
-    if request.method == 'POST':
-        form = FoodItemForm(request.POST, instance=item)
-        if form.is_valid():
-            updated_item = form.save()
-            # Update expiry status
-            updated_item.update_expiry_status()
-            
-            messages.success(request, f'"{updated_item.name}" updated successfully!')
-            return redirect('inventory_list')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = FoodItemForm(instance=item)
-    
-    context = {
-        'page_title': 'Edit Food Item',
-        'form': form,
-        'item': item,
-    }
-    return render(request, 'inventory/edit_item.html', context)
 
 @login_required
 def edit_item(request, item_id):

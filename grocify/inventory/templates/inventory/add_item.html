@@ -466,7 +466,7 @@
         <div class="loading-overlay" id="loadingOverlay">
             <div class="loading-spinner">
                 <div class="spinner"></div>
-                <p>Saving item...</p>
+                <p>Saving items...</p>
             </div>
         </div>
         
@@ -730,14 +730,14 @@
                                 </button>
                             </div>
                             <div class="col">
-                                <a href="{% url 'add_item' %}" class="btn btn-secondary w-100" id="addAnotherButton">
+                                <button type="button" class="btn btn-secondary w-100" id="addAnotherButton">
                                     <i class="fas fa-plus-circle"></i> Add & Continue
-                                </a>
+                                </button>
                             </div>
                             <div class="col">
-                                <a href="{% url 'inventory_list' %}" class="btn btn-outline w-100">
-                                    <i class="fas fa-times"></i> Cancel
-                                </a>
+                                <button type="button" class="btn btn-outline w-100" id="addToQuickAddBtn">
+                                    <i class="fas fa-plus"></i> Add to Quick List
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -923,6 +923,7 @@
     const jsErrorList = document.getElementById('jsErrorList');
     const submitButton = document.getElementById('submitButton');
     const addAnotherButton = document.getElementById('addAnotherButton');
+    const addToQuickAddBtn = document.getElementById('addToQuickAddBtn');
     const addItemForm = document.getElementById('addItemForm');
     const successMessage = document.getElementById('successMessage');
     const successText = document.getElementById('successText');
@@ -986,7 +987,7 @@
         updateAddedItemsList();
     });
     
-    saveAllItemsBtn.addEventListener('click', function() {
+    saveAllItemsBtn.addEventListener('click', async function() {
         if (addedItems.length === 0) {
             alert('No items to save. Add some items first.');
             return;
@@ -996,10 +997,31 @@
             return;
         }
         
-        saveAllItems();
+        await saveAllItems();
+    });
+    
+    // Add to Quick Add list button
+    addToQuickAddBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const errors = validateForm();
+        
+        if (errors.length > 0) {
+            showFormErrors(errors);
+            return false;
+        }
+        
+        // Get form data
+        const itemData = getFormData();
+        
+        // Add to quick add list
+        addToMultiAddList(itemData);
+        
+        return false;
     });
     
     function addToMultiAddList(itemData) {
+        // Add item to the list
         addedItems.push(itemData);
         updateAddedItemsList();
         updateItemCount();
@@ -1007,8 +1029,17 @@
         // Clear form for next item
         clearForm();
         
-        // Show success message for individual add
+        // Show success message
         showSuccessMessage(`"${itemData.name}" added to batch (${addedItems.length} items total)`);
+        
+        // Auto-enable Quick Add mode if not already enabled
+        if (!isMultiAddMode) {
+            isMultiAddMode = true;
+            multiAddContainer.classList.add('active');
+            toggleMultiAddBtn.innerHTML = '<i class="fas fa-times"></i> Disable Quick Add';
+            toggleMultiAddBtn.classList.remove('btn-info');
+            toggleMultiAddBtn.classList.add('btn-warning');
+        }
     }
     
     function updateAddedItemsList() {
@@ -1045,7 +1076,7 @@
         document.querySelectorAll('.remove-item').forEach(btn => {
             btn.addEventListener('click', function() {
                 const index = parseInt(this.dataset.index);
-                removedItem = addedItems[index];
+                const removedItem = addedItems[index];
                 addedItems.splice(index, 1);
                 updateAddedItemsList();
                 updateItemCount();
@@ -1055,7 +1086,7 @@
     }
     
     function updateItemCount() {
-        itemCount.textContent = `${addedItems.length} items`;
+        itemCount.textContent = `${addedItems.length} item${addedItems.length !== 1 ? 's' : ''}`;
         
         if (addedItems.length > 0) {
             saveAllItemsBtn.disabled = false;
@@ -1068,47 +1099,97 @@
         loadingOverlay.classList.add('active');
         
         try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            let successCount = 0;
+            let failedItems = [];
+            
             for (let i = 0; i < addedItems.length; i++) {
                 const item = addedItems[i];
                 
                 // Create form data
                 const formData = new FormData();
-                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                formData.append('csrfmiddlewaretoken', csrfToken);
                 formData.append('name', item.name);
                 formData.append('quantity', item.quantity);
                 formData.append('unit', item.unit);
                 formData.append('category', item.category);
                 formData.append('expiry_date', item.expiry_date);
                 
-                // Send request
-                const response = await fetch('{% url "add_item" %}', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                try {
+                    // Send request
+                    const response = await fetch('{% url "add_item" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        const errorData = await response.json();
+                        failedItems.push({
+                            name: item.name,
+                            error: errorData.errors || 'Unknown error'
+                        });
                     }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to save item: ${item.name}`);
+                } catch (error) {
+                    console.error('Error saving item:', error);
+                    failedItems.push({
+                        name: item.name,
+                        error: 'Network error'
+                    });
                 }
             }
             
-            // Success - clear list and show message
-            addedItems = [];
-            updateAddedItemsList();
-            updateItemCount();
-            
-            showSuccessMessage(`Successfully saved ${addedItems.length} items to inventory!`, true);
-            
-            // Redirect after delay
-            setTimeout(() => {
-                window.location.href = '{% url "inventory_list" %}';
-            }, 2000);
+            // Show results
+            if (failedItems.length === 0) {
+                // All items saved successfully
+                showSuccessMessage(`Successfully saved ${successCount} items to inventory!`);
+                
+                // Clear the list
+                addedItems = [];
+                updateAddedItemsList();
+                updateItemCount();
+                
+                // Disable Quick Add mode after successful save
+                setTimeout(() => {
+                    isMultiAddMode = false;
+                    multiAddContainer.classList.remove('active');
+                    toggleMultiAddBtn.innerHTML = '<i class="fas fa-layer-group"></i> Enable Quick Add';
+                    toggleMultiAddBtn.classList.remove('btn-warning');
+                    toggleMultiAddBtn.classList.add('btn-info');
+                    
+                    // Redirect to inventory list after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '{% url "inventory_list" %}';
+                    }, 2000);
+                }, 1500);
+                
+            } else {
+                // Some items failed
+                let errorMessage = `Saved ${successCount} items, but ${failedItems.length} failed:\n`;
+                failedItems.forEach(failed => {
+                    errorMessage += `\n• ${failed.name}: ${failed.error}`;
+                });
+                
+                alert(errorMessage);
+                
+                // Remove successfully saved items from the list
+                if (successCount > 0) {
+                    // Keep only failed items
+                    addedItems = addedItems.filter(item => {
+                        return failedItems.some(failed => failed.name === item.name);
+                    });
+                    updateAddedItemsList();
+                    updateItemCount();
+                }
+            }
             
         } catch (error) {
-            console.error('Error saving items:', error);
-            alert('Error saving some items. Please try again.');
+            console.error('Error in saveAllItems:', error);
+            alert('Error saving items. Please try again.');
         } finally {
             loadingOverlay.classList.remove('active');
         }
@@ -1428,10 +1509,12 @@
         
         if (hasCategory && hasItem) {
             submitButton.disabled = false;
-            addAnotherButton.classList.remove('disabled');
+            addAnotherButton.disabled = false;
+            addToQuickAddBtn.disabled = false;
         } else {
             submitButton.disabled = true;
-            addAnotherButton.classList.add('disabled');
+            addAnotherButton.disabled = true;
+            addToQuickAddBtn.disabled = true;
         }
     }
 
@@ -1550,8 +1633,9 @@
     addItemForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
+        // If Quick Add mode is enabled and we're clicking the main submit button,
+        // we should add to the Quick Add list instead of submitting normally
         if (isMultiAddMode) {
-            // In multi-add mode, just add to the list
             const errors = validateForm();
             
             if (errors.length > 0) {
@@ -1592,7 +1676,7 @@
         return false;
     });
 
-    // Add & Continue button - FIXED: Now it will work properly
+    // Add & Continue button
     addAnotherButton.addEventListener('click', function(e) {
         e.preventDefault();
         
@@ -1607,58 +1691,23 @@
         nameField.value = selectedItem;
         categoryField.value = selectedCategory;
         
-        // Create a hidden form and submit it
-        const tempForm = document.createElement('form');
-        tempForm.method = 'POST';
-        tempForm.action = '{% url "add_item" %}';
-        tempForm.style.display = 'none';
+        // Show loading state
+        addAnotherButton.disabled = true;
+        addAnotherButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
         
-        const csrfToken = document.createElement('input');
-        csrfToken.type = 'hidden';
-        csrfToken.name = 'csrfmiddlewaretoken';
-        csrfToken.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        // Show success message
+        successText.textContent = 'Item added! Adding another...';
+        successMessage.classList.add('active');
         
-        const nameInput = document.createElement('input');
-        nameInput.type = 'hidden';
-        nameInput.name = 'name';
-        nameInput.value = selectedItem;
-        
-        const quantityInput = document.createElement('input');
-        quantityInput.type = 'hidden';
-        quantityInput.name = 'quantity';
-        quantityInput.value = quantityField.value;
-        
-        const unitValue = customUnitInput.value.trim() || unitSelect.value;
-        const unitInput = document.createElement('input');
-        unitInput.type = 'hidden';
-        unitInput.name = 'unit';
-        unitInput.value = unitValue;
-        
-        const categoryInput = document.createElement('input');
-        categoryInput.type = 'hidden';
-        categoryInput.name = 'category';
-        categoryInput.value = selectedCategory;
-        
-        const expiryInput = document.createElement('input');
-        expiryInput.type = 'hidden';
-        expiryInput.name = 'expiry_date';
-        expiryInput.value = expiryDateField.value;
-        
+        // Create a hidden input to indicate "Add & Continue"
         const addAnotherInput = document.createElement('input');
         addAnotherInput.type = 'hidden';
         addAnotherInput.name = 'add_another';
         addAnotherInput.value = 'true';
+        addItemForm.appendChild(addAnotherInput);
         
-        tempForm.appendChild(csrfToken);
-        tempForm.appendChild(nameInput);
-        tempForm.appendChild(quantityInput);
-        tempForm.appendChild(unitInput);
-        tempForm.appendChild(categoryInput);
-        tempForm.appendChild(expiryInput);
-        tempForm.appendChild(addAnotherInput);
-        
-        document.body.appendChild(tempForm);
-        tempForm.submit();
+        // Submit the form
+        addItemForm.submit();
         
         return false;
     });
@@ -1824,6 +1873,30 @@
     .disabled {
         opacity: 0.6;
         cursor: not-allowed;
+    }
+    
+    /* Button disabled state */
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    /* Badge styling */
+    .badge {
+        display: inline-block;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 50rem;
+    }
+    
+    .badge-primary {
+        background-color: var(--primary-color);
+        color: white;
     }
 </style>
 {% endblock %}
