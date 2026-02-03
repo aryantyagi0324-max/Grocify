@@ -336,43 +336,6 @@
         }
     }
     
-    /* Unit selection styles */
-    .unit-selection-container {
-        margin-bottom: 20px;
-    }
-    
-    .unit-toggle {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 15px;
-    }
-    
-    .unit-toggle-btn {
-        padding: 8px 16px;
-        border: 2px solid var(--border-color);
-        background-color: var(--bg-input);
-        color: var(--text-secondary);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        font-weight: 500;
-    }
-    
-    .unit-toggle-btn.active {
-        background-color: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-    
-    .custom-unit-input {
-        display: none;
-    }
-    
-    .custom-unit-input.active {
-        display: block;
-        animation: fadeIn 0.3s ease;
-    }
-    
     /* Multi-add styles */
     .multi-add-container {
         background-color: rgba(74, 111, 165, 0.05);
@@ -623,11 +586,15 @@
                         <i class="fas fa-search"></i> Find or Add Item
                     </h3>
                     
-                    <!-- Category-based Suggestions -->
-                    <div class="suggestions-container" id="categorySuggestions">
+                    <!-- Category-based Suggestions - ALWAYS SHOW THIS SECTION -->
+                    <div class="suggestions-container active" id="categorySuggestions">
                         <h4 class="suggestions-title">Popular Items in this Category</h4>
                         <div class="suggestions-grid" id="suggestionsGrid">
                             <!-- Suggestions will be populated by JavaScript -->
+                            <div class="text-center py-3" style="grid-column: 1 / -1;">
+                                <i class="fas fa-info-circle" style="color: var(--text-muted);"></i>
+                                <p class="mt-2 text-muted">Select a category to see popular items</p>
+                            </div>
                         </div>
                     </div>
                     
@@ -698,22 +665,12 @@
                             </div>
                             
                             <div class="col">
-                                <div class="form-group unit-selection-container">
-                                    <label class="form-label">
+                                <div class="form-group">
+                                    <label class="form-label" for="id_unit">
                                         <i class="fas fa-weight"></i> Unit
                                     </label>
                                     
-                                    <!-- Unit Toggle -->
-                                    <div class="unit-toggle">
-                                        <button type="button" class="unit-toggle-btn active" id="useDropdown">
-                                            Select from list
-                                        </button>
-                                        <button type="button" class="unit-toggle-btn" id="useCustom">
-                                            Type custom unit
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Dropdown Unit -->
+                                    <!-- Unit dropdown (default) -->
                                     <div id="dropdownUnitContainer">
                                         {{ form.unit }}
                                         {% if form.unit.errors %}
@@ -725,7 +682,7 @@
                                     </div>
                                     
                                     <!-- Custom Unit Input -->
-                                    <div class="custom-unit-input" id="customUnitContainer">
+                                    <div class="form-group mt-2">
                                         {{ form.custom_unit }}
                                         {% if form.custom_unit.errors %}
                                         <div class="alert alert-danger mt-1">
@@ -733,11 +690,10 @@
                                             {{ form.custom_unit.errors }}
                                         </div>
                                         {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> Or type custom unit (e.g., "bunch", "pack")
+                                        </small>
                                     </div>
-                                    
-                                    <small class="form-text text-muted">
-                                        <i class="fas fa-info-circle"></i> Choose from common units or type your own
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -769,14 +725,14 @@
                     <div class="form-group mt-4">
                         <div class="row">
                             <div class="col">
-                                <button type="submit" class="btn btn-primary w-100" id="submitButton" disabled>
+                                <button type="submit" class="btn btn-primary w-100" id="submitButton">
                                     <i class="fas fa-save"></i> Add to Inventory
                                 </button>
                             </div>
                             <div class="col">
-                                <button type="button" class="btn btn-secondary w-100" id="addAnotherButton" disabled>
+                                <a href="{% url 'add_item' %}" class="btn btn-secondary w-100" id="addAnotherButton">
                                     <i class="fas fa-plus-circle"></i> Add & Continue
-                                </button>
+                                </a>
                             </div>
                             <div class="col">
                                 <a href="{% url 'inventory_list' %}" class="btn btn-outline w-100">
@@ -982,13 +938,9 @@
     const saveAllItemsBtn = document.getElementById('saveAllItems');
     
     // Unit selection elements
-    const useDropdownBtn = document.getElementById('useDropdown');
-    const useCustomBtn = document.getElementById('useCustom');
-    const dropdownUnitContainer = document.getElementById('dropdownUnitContainer');
-    const customUnitContainer = document.getElementById('customUnitContainer');
     const unitSelect = document.getElementById('id_unit');
     const customUnitInput = document.getElementById('id_custom_unit');
-    
+
     // Django form fields
     const categoryField = document.getElementById('id_category');
     const nameField = document.getElementById('id_name');
@@ -1001,32 +953,6 @@
     let isMultiAddMode = false;
     let addedItems = [];
 
-    // ========== UNIT SELECTION FUNCTIONALITY ==========
-    
-    // Initialize unit selection
-    useDropdownBtn.addEventListener('click', function() {
-        useDropdownBtn.classList.add('active');
-        useCustomBtn.classList.remove('active');
-        dropdownUnitContainer.style.display = 'block';
-        customUnitContainer.classList.remove('active');
-        unitSelect.disabled = false;
-        customUnitInput.disabled = true;
-    });
-    
-    useCustomBtn.addEventListener('click', function() {
-        useCustomBtn.classList.add('active');
-        useDropdownBtn.classList.remove('active');
-        dropdownUnitContainer.style.display = 'none';
-        customUnitContainer.classList.add('active');
-        unitSelect.disabled = true;
-        customUnitInput.disabled = false;
-        customUnitInput.focus();
-    });
-    
-    // Initialize with dropdown selected
-    unitSelect.disabled = false;
-    customUnitInput.disabled = true;
-    
     // ========== MULTI-ADD FUNCTIONALITY ==========
     
     toggleMultiAddBtn.addEventListener('click', function() {
@@ -1194,21 +1120,13 @@
         quantityField.value = '1';
         unitSelect.value = '';
         customUnitInput.value = '';
-        useDropdownBtn.click(); // Reset to dropdown mode
         expiryDateField.value = getDefaultExpiryDate();
-        
-        // Clear category if needed
-        // categoryTabs.forEach(tab => tab.classList.remove('active'));
-        // selectedCategory = '';
-        // categoryField.value = '';
-        // categoryPreview.classList.remove('active');
-        // categorySuggestions.classList.remove('active');
         
         updateSubmitButton();
         clearFormErrors();
     }
     
-    // ========== EXISTING CATEGORY SELECTION CODE (modified) ==========
+    // ========== CATEGORY SELECTION CODE ==========
     
     // Initialize category tabs
     categoryTabs.forEach(tab => {
@@ -1266,6 +1184,18 @@
         
         // Clear previous suggestions
         suggestionsGrid.innerHTML = '';
+        
+        if (items.length === 0) {
+            const noItemsMessage = document.createElement('div');
+            noItemsMessage.className = 'text-center py-3';
+            noItemsMessage.style.gridColumn = '1 / -1';
+            noItemsMessage.innerHTML = `
+                <i class="fas fa-info-circle" style="color: var(--text-muted);"></i>
+                <p class="mt-2 text-muted">No popular items found for this category</p>
+            `;
+            suggestionsGrid.appendChild(noItemsMessage);
+            return;
+        }
         
         // Add new suggestions
         items.slice(0, 12).forEach(item => {
@@ -1498,10 +1428,10 @@
         
         if (hasCategory && hasItem) {
             submitButton.disabled = false;
-            addAnotherButton.disabled = false;
+            addAnotherButton.classList.remove('disabled');
         } else {
             submitButton.disabled = true;
-            addAnotherButton.disabled = true;
+            addAnotherButton.classList.add('disabled');
         }
     }
 
@@ -1570,12 +1500,14 @@
             errors.push('Quantity seems too high. Please check the value.');
         }
         
-        // Check unit
-        const unit = unitSelect.disabled ? customUnitInput.value.trim() : unitSelect.value;
-        if (!unit) {
-            errors.push('Please select a unit or enter a custom unit');
-        } else if (unit.length > 20) {
-            errors.push('Unit name is too long');
+        // Check unit - either select from dropdown or custom unit
+        const unit = unitSelect.value;
+        const customUnit = customUnitInput.value.trim();
+        
+        if (!unit && !customUnit) {
+            errors.push('Please select a unit from the dropdown or enter a custom unit');
+        } else if (customUnit && customUnit.length > 20) {
+            errors.push('Custom unit name is too long (max 20 characters)');
         }
         
         // Check expiry date
@@ -1603,7 +1535,7 @@
 
     // Get form data
     function getFormData() {
-        const unit = unitSelect.disabled ? customUnitInput.value.trim() : unitSelect.value;
+        const unit = customUnitInput.value.trim() || unitSelect.value;
         
         return {
             name: selectedItem,
@@ -1660,7 +1592,7 @@
         return false;
     });
 
-    // Add & Continue button
+    // Add & Continue button - FIXED: Now it will work properly
     addAnotherButton.addEventListener('click', function(e) {
         e.preventDefault();
         
@@ -1671,65 +1603,65 @@
             return false;
         }
         
-        const itemData = getFormData();
+        // Form is valid, ensure all fields are properly set
+        nameField.value = selectedItem;
+        categoryField.value = selectedCategory;
         
-        if (isMultiAddMode) {
-            addToMultiAddList(itemData);
-        } else {
-            // Submit via AJAX for single add & continue
-            submitViaAjax(itemData, true);
-        }
+        // Create a hidden form and submit it
+        const tempForm = document.createElement('form');
+        tempForm.method = 'POST';
+        tempForm.action = '{% url "add_item" %}';
+        tempForm.style.display = 'none';
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrfmiddlewaretoken';
+        csrfToken.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'hidden';
+        nameInput.name = 'name';
+        nameInput.value = selectedItem;
+        
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'hidden';
+        quantityInput.name = 'quantity';
+        quantityInput.value = quantityField.value;
+        
+        const unitValue = customUnitInput.value.trim() || unitSelect.value;
+        const unitInput = document.createElement('input');
+        unitInput.type = 'hidden';
+        unitInput.name = 'unit';
+        unitInput.value = unitValue;
+        
+        const categoryInput = document.createElement('input');
+        categoryInput.type = 'hidden';
+        categoryInput.name = 'category';
+        categoryInput.value = selectedCategory;
+        
+        const expiryInput = document.createElement('input');
+        expiryInput.type = 'hidden';
+        expiryInput.name = 'expiry_date';
+        expiryInput.value = expiryDateField.value;
+        
+        const addAnotherInput = document.createElement('input');
+        addAnotherInput.type = 'hidden';
+        addAnotherInput.name = 'add_another';
+        addAnotherInput.value = 'true';
+        
+        tempForm.appendChild(csrfToken);
+        tempForm.appendChild(nameInput);
+        tempForm.appendChild(quantityInput);
+        tempForm.appendChild(unitInput);
+        tempForm.appendChild(categoryInput);
+        tempForm.appendChild(expiryInput);
+        tempForm.appendChild(addAnotherInput);
+        
+        document.body.appendChild(tempForm);
+        tempForm.submit();
         
         return false;
     });
-
-    // AJAX submission
-    async function submitViaAjax(itemData, addAnother = false) {
-        loadingOverlay.classList.add('active');
-        
-        try {
-            const formData = new FormData();
-            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-            formData.append('name', itemData.name);
-            formData.append('quantity', itemData.quantity);
-            formData.append('unit', itemData.unit);
-            formData.append('category', itemData.category);
-            formData.append('expiry_date', itemData.expiry_date);
-            
-            const response = await fetch('{% url "add_item" %}', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                
-                if (addAnother) {
-                    showSuccessMessage(`"${itemData.name}" added successfully! Add another item below.`);
-                    clearForm();
-                } else {
-                    showSuccessMessage(`"${itemData.name}" added successfully! Redirecting...`);
-                    setTimeout(() => {
-                        window.location.href = '{% url "inventory_list" %}';
-                    }, 1500);
-                }
-            } else {
-                throw new Error('Failed to save item');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error saving item. Please try again.');
-        } finally {
-            loadingOverlay.classList.remove('active');
-            submitButton.disabled = false;
-            submitButton.innerHTML = '<i class="fas fa-save"></i> Add to Inventory';
-            addAnotherButton.disabled = false;
-            addAnotherButton.innerHTML = '<i class="fas fa-plus-circle"></i> Add & Continue';
-        }
-    }
 
     // Initialize form on load
     document.addEventListener('DOMContentLoaded', function() {
@@ -1780,9 +1712,6 @@
         
         // Update submit button based on existing values
         updateSubmitButton();
-        
-        // Initialize unit selection
-        useDropdownBtn.click();
     });
 
     // Add keyboard navigation for autocomplete
@@ -1890,6 +1819,11 @@
     
     .ml-2 {
         margin-left: 0.5rem;
+    }
+    
+    .disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 </style>
 {% endblock %}

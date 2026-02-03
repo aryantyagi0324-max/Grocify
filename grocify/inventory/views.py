@@ -238,7 +238,7 @@ def inventory_list(request):
 
 @login_required
 def add_item(request):
-    """Add a new food item"""
+    """Add a new food item with AJAX support"""
     if request.method == 'POST':
         form = FoodItemForm(request.POST)
         if form.is_valid():
@@ -249,9 +249,31 @@ def add_item(request):
             # Update expiry status
             item.update_expiry_status()
             
+            # Check if it's an AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'"{item.name}" added to your inventory!',
+                    'item_id': item.id
+                })
+            
             messages.success(request, f'"{item.name}" added to your inventory!')
-            return redirect('inventory_list')
+            
+            # Check if "Add & Continue" was clicked
+            if 'add_another' in request.POST:
+                # Redirect back to the same page with cleared form
+                return redirect('add_item')
+            else:
+                # Redirect to inventory list
+                return redirect('inventory_list')
         else:
+            # Handle AJAX errors
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+            
             messages.error(request, 'Please correct the errors below.')
     else:
         # Set default expiry date to 7 days from now
@@ -262,6 +284,11 @@ def add_item(request):
         'page_title': 'Add Food Item',
         'form': form,
     }
+    
+    # Handle AJAX GET requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+    
     return render(request, 'inventory/add_item.html', context)
 
 @login_required

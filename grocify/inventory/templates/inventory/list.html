@@ -132,10 +132,29 @@
     
     .search-filter-bar {
         display: flex;
+        align-items: center;
         gap: 1rem;
         margin-bottom: 1.5rem;
         flex-wrap: wrap;
-        align-items: center;
+    }
+    
+    .search-form {
+        display: flex;
+        flex: 1;
+        min-width: 400px;
+    }
+    
+    .search-input {
+        flex: 1;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-right: none;
+    }
+    
+    .search-button {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        white-space: nowrap;
     }
     
     .category-filter {
@@ -206,34 +225,6 @@
         border: 2px dashed var(--border-color);
     }
     
-    .view-toggle {
-        display: flex;
-        gap: 0.5rem;
-        margin-left: auto;
-    }
-    
-    .view-toggle-btn {
-        padding: 0.5rem 1rem;
-        background-color: var(--bg-input);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-    }
-    
-    .view-toggle-btn:hover {
-        background-color: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-    
-    .view-toggle-btn.active {
-        background-color: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-    
     .table-actions {
         display: flex;
         justify-content: space-between;
@@ -271,13 +262,17 @@
             align-items: stretch;
         }
         
+        .search-form {
+            min-width: 100%;
+        }
+        
         .table-actions {
             flex-direction: column;
             align-items: stretch;
         }
         
         .bulk-actions {
-            justify-content: flex-start;
+            justify-content: center;
         }
     }
 </style>
@@ -303,33 +298,24 @@
     </div>
 </div>
 
-<!-- Search and Filter Bar -->
+<!-- Search and Filter Bar - FIXED LAYOUT -->
 <div class="search-filter-bar">
-    <form method="GET" action="{% url 'inventory_list' %}" class="d-flex" style="flex: 1;">
+    <!-- Search form with input and button on same line -->
+    <form method="GET" action="{% url 'inventory_list' %}" class="search-form">
         <input type="text" 
                name="search" 
-               class="form-control" 
+               class="form-control search-input" 
                placeholder="Search items by name..." 
-               value="{{ search_query|default:'' }}"
-               style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
-        <button type="submit" class="btn btn-primary" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+               value="{{ search_query|default:'' }}">
+        <button type="submit" class="btn btn-primary search-button">
             <i class="fas fa-search"></i> Search
         </button>
     </form>
     
+    <!-- Reset filter button on same line -->
     <a href="{% url 'inventory_list' %}" class="btn btn-outline">
         <i class="fas fa-redo"></i> Reset Filters
     </a>
-    
-    <!-- View Toggle -->
-    <div class="view-toggle">
-        <button class="view-toggle-btn active" id="tableViewBtn" title="Table View">
-            <i class="fas fa-table"></i>
-        </button>
-        <a href="#" class="view-toggle-btn" id="cardViewBtn" title="Card View" style="text-decoration: none;">
-            <i class="fas fa-th-large"></i>
-        </a>
-    </div>
 </div>
 
 <!-- Category Filter -->
@@ -378,9 +364,7 @@
         <button class="btn btn-outline btn-sm" id="deleteSelectedBtn" disabled>
             <i class="fas fa-trash"></i> Delete Selected
         </button>
-        <button class="btn btn-outline btn-sm" id="exportBtn">
-            <i class="fas fa-download"></i> Export
-        </button>
+        <!-- Export button REMOVED -->
     </div>
     
     <div class="text-muted">
@@ -589,7 +573,6 @@
         const itemCheckboxes = document.querySelectorAll('.item-checkbox');
         const selectAllBtn = document.getElementById('selectAllBtn');
         const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-        const exportBtn = document.getElementById('exportBtn');
         
         // Select All Checkbox
         selectAllCheckbox.addEventListener('change', function() {
@@ -680,11 +663,6 @@
             });
         });
         
-        // Export button
-        exportBtn.addEventListener('click', function() {
-            alert('Export feature coming soon!');
-        });
-        
         // Quick edit buttons
         document.querySelectorAll('.quick-edit-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -726,19 +704,6 @@
                     e.preventDefault();
                 }
             });
-        });
-        
-        // View toggle
-        const tableViewBtn = document.getElementById('tableViewBtn');
-        const cardViewBtn = document.getElementById('cardViewBtn');
-        
-        tableViewBtn.addEventListener('click', function() {
-            // Already in table view
-        });
-        
-        cardViewBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Card view feature coming soon! Currently showing table view.');
         });
     });
 </script>
