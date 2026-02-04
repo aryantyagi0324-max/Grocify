@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome to Grocify - Smart Kitchen Manager{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="text-center p-4 mb-4">
+    <div class="card p-4" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white;">
+        <h1 class="mb-2" style="font-size: 3rem;">
+            <i class="fas fa-shopping-basket"></i> Welcome to Grocify
+        </h1>
+        <p class="mb-3" style="font-size: 1.25rem; opacity: 0.9;">
+            Your Smart Kitchen Inventory & Recipe Assistant
+        </p>
+        <p style="max-width: 800px; margin: 0 auto 2rem; opacity: 0.95;">
+            Track food items, reduce waste, get smart recipe suggestions, and save money – all in one place.
+        </p>
+        
+        {% if not user.is_authenticated %}
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="{% url 'signup' %}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-user-plus"></i> Get Started Free
+            </a>
+            <a href="{% url 'login' %}" class="btn btn-outline btn-lg" style="color: white; border-color: white;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+        </div>
+        {% else %}
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-chart-line"></i> Go to Dashboard
+            </a>
+            <a href="{% url 'inventory_list' %}" class="btn btn-outline btn-lg" style="color: white; border-color: white;">
+                <i class="fas fa-boxes"></i> View Inventory
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="mb-4">
+    <h2 class="text-center mb-3">Why Choose Grocify?</h2>
+    
+    <div class="row">
+        <div class="col">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="mb-2" style="font-size: 2.5rem; color: var(--primary-color);">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <h3 class="card-title">Smart Inventory Tracking</h3>
+                    <p>Track food items with expiry dates, quantities, and categories. Never forget what you have!</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="mb-2" style="font-size: 2.5rem; color: var(--secondary-color);">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h3 class="card-title">Expiry Alerts</h3>
+                    <p>Get automatic alerts before food expires. Reduce waste and save money with timely notifications.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <div class="mb-2" style="font-size: 2.5rem; color: var(--accent-color);">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3 class="card-title">Smart Recipe Suggestions</h3>
+                    <p>Get intelligent recipe matches based on what you have. Cook delicious meals without extra shopping.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="mb-4">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">How Grocify Helps</h2>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col">
+                    <div style="font-size: 2rem; color: var(--success-color);">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <h3>Reduce Food Waste</h3>
+                    <p>Households waste 30% of food. Grocify helps cut that significantly.</p>
+                </div>
+                
+                <div class="col">
+                    <div style="font-size: 2rem; color: var(--info-color);">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <h3>Save Money</h3>
+                    <p>Stop buying duplicates and use what you already have.</p>
+                </div>
+                
+                <div class="col">
+                    <div style="font-size: 2rem; color: var(--warning-color);">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3>Save Time</h3>
+                    <p>Quickly see what you have and get instant recipe ideas.</p>
+                </div>
+                
+                <div class="col">
+                    <div style="font-size: 2rem; color: var(--danger-color);">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <h3>Eat Healthier</h3>
+                    <p>Plan meals better and cook more at home.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="text-center mb-4">
+    <div class="card p-4" style="background-color: rgba(74, 111, 165, 0.05); border: 2px dashed var(--border-color);">
+        <h2 class="mb-2">Ready to Transform Your Kitchen?</h2>
+        <p class="mb-3" style="max-width: 600px; margin: 0 auto;">
+            Join thousands of users who are already saving money, reducing waste, and cooking smarter with Grocify.
+        </p>
+        
+        {% if not user.is_authenticated %}
+        <a href="{% url 'signup' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-rocket"></i> Start Your Free Account
+        </a>
+        <p class="mt-2 text-muted">
+            No credit card required • Setup in 2 minutes
+        </p>
+        {% else %}
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="{% url 'inventory_list' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add First Item
+            </a>
+            <a href="{% url 'recipes' %}" class="btn btn-success">
+                <i class="fas fa-robot"></i> Try Smart Recipes
+            </a>
+            <a href="{% url 'about' %}" class="btn btn-outline">
+                <i class="fas fa-info-circle"></i> Learn More
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

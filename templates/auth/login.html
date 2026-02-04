@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - Grocify{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col" style="max-width: 450px; margin: 0 auto;">
+        <!-- Login Card -->
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <div style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <h1 class="card-title">Welcome Back</h1>
+                <p class="text-muted">Login to access your smart kitchen</p>
+            </div>
+            
+            <!-- Messages -->
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="message {{ message.tags }}">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Login Form -->
+            <form method="POST" action="{% url 'login' %}">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label class="form-label" for="id_username">
+                        <i class="fas fa-user"></i> Username
+                    </label>
+                    <input type="text" 
+                           name="username" 
+                           id="id_username" 
+                           class="form-control" 
+                           placeholder="Enter your username"
+                           required>
+                    {% if form.username.errors %}
+                    <div class="text-danger mt-1">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.username.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="id_password">
+                        <i class="fas fa-lock"></i> Password
+                    </label>
+                    <input type="password" 
+                           name="password" 
+                           id="id_password" 
+                           class="form-control" 
+                           placeholder="Enter your password"
+                           required>
+                    {% if form.password.errors %}
+                    <div class="text-danger mt-1">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.password.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Divider -->
+            <div class="text-center my-4" style="color: var(--text-muted);">
+                <span style="background: var(--bg-card); padding: 0 1rem;">or</span>
+                <hr style="border-color: var(--border-color); margin: 1rem 0;">
+            </div>
+            
+            <!-- Links -->
+            <div class="text-center">
+                <p class="mb-2">
+                    Don't have an account? 
+                    <a href="{% url 'signup' %}" style="color: var(--primary-color); text-decoration: none;">
+                        <i class="fas fa-user-plus"></i> Sign up here
+                    </a>
+                </p>
+                <p class="mb-0">
+                    <a href="{% url 'home' %}" style="color: var(--text-muted); text-decoration: none;">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </a>
+                </p>
+            </div>
+        </div>
+        
+        <!-- Feature Highlights -->
+        <div class="card mt-4">
+            <div class="card-body text-center">
+                <h4 class="mb-3">Why Login?</h4>
+                <div class="row">
+                    <div class="col">
+                        <div style="color: var(--primary-color); font-size: 1.5rem;">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <p class="small mb-0">Track Inventory</p>
+                    </div>
+                    <div class="col">
+                        <div style="color: var(--secondary-color); font-size: 1.5rem;">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <p class="small mb-0">Expiry Alerts</p>
+                    </div>
+                    <div class="col">
+                        <div style="color: var(--accent-color); font-size: 1.5rem;">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <p class="small mb-0">Get Recipes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .row.justify-content-center {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .w-100 {
+        width: 100%;
+    }
+</style>
+{% endblock %}

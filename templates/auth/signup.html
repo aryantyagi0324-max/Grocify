@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign Up - Grocify{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col" style="max-width: 500px; margin: 0 auto;">
+        <!-- Signup Card -->
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <div style="font-size: 3rem; color: var(--secondary-color); margin-bottom: 1rem;">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <h1 class="card-title">Join Grocify</h1>
+                <p class="text-muted">Create your free account and start managing your kitchen smarter</p>
+            </div>
+            
+            <!-- Messages -->
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="message {{ message.tags }}">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Signup Form -->
+            <form method="POST" action="{% url 'signup' %}">
+                {% csrf_token %}
+                
+                {% for field in form %}
+                <div class="form-group">
+                    <label class="form-label" for="{{ field.id_for_label }}">
+                        {% if field.name == 'username' %}
+                            <i class="fas fa-user"></i>
+                        {% elif field.name == 'email' %}
+                            <i class="fas fa-envelope"></i>
+                        {% elif 'password' in field.name %}
+                            <i class="fas fa-lock"></i>
+                        {% else %}
+                            <i class="fas fa-edit"></i>
+                        {% endif %}
+                        {{ field.label }}
+                    </label>
+                    
+                    {{ field }}
+                    
+                    {% if field.errors %}
+                    <div class="alert alert-danger mt-1" style="padding: 0.5rem; font-size: 0.85rem;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ field.errors }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if field.help_text %}
+                    <small class="form-text text-muted">
+                        <i class="fas fa-info-circle"></i> {{ field.help_text }}
+                    </small>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-secondary btn-lg w-100">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Divider -->
+            <div class="text-center my-4" style="color: var(--text-muted);">
+                <span style="background: var(--bg-card); padding: 0 1rem;">Already have an account?</span>
+                <hr style="border-color: var(--border-color); margin: 1rem 0;">
+            </div>
+            
+            <!-- Links -->
+            <div class="text-center">
+                <p class="mb-2">
+                    Already registered? 
+                    <a href="{% url 'login' %}" style="color: var(--primary-color); text-decoration: none;">
+                        <i class="fas fa-sign-in-alt"></i> Login here
+                    </a>
+                </p>
+                <p class="mb-0">
+                    <a href="{% url 'home' %}" style="color: var(--text-muted); text-decoration: none;">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </a>
+                </p>
+            </div>
+        </div>
+        
+        <!-- Benefits Card -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h4 class="text-center mb-3">
+                    <i class="fas fa-gift text-primary"></i> What You Get
+                </h4>
+                
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <div style="color: var(--success-color); margin-right: 10px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <strong>Smart Tracking</strong>
+                                <p class="small mb-0 text-muted">Track food expiry dates</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <div style="color: var(--success-color); margin-right: 10px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <strong>Recipe Suggestions</strong>
+                                <p class="small mb-0 text-muted">Cook with what you have</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <div style="color: var(--success-color); margin-right: 10px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <strong>Expiry Alerts</strong>
+                                <p class="small mb-0 text-muted">Reduce food waste</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-6 mb-3">
+                        <div class="d-flex align-items-start">
+                            <div style="color: var(--success-color); margin-right: 10px;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <strong>Save Money</strong>
+                                <p class="small mb-0 text-muted">Stop buying duplicates</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Free Forever</strong> - No credit card required. Setup takes 2 minutes.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Style form fields */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background-color: var(--bg-input);
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        transition: all var(--transition-fast);
+    }
+    
+    input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
+    }
+    
+    .row.justify-content-center {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .w-100 {
+        width: 100%;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .align-items-start {
+        align-items: flex-start;
+    }
+    
+    .col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+</style>
+{% endblock %}
